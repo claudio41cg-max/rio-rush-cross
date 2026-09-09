@@ -1,0 +1,136 @@
+name: Translate game UI to Portuguese
+
+on:
+  push:
+    paths:
+      - '.github/workflows/translate-ptbr.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Translate visible UI to pt-BR
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+            'src/ui/MainMenu.ts': {
+              "{ easy: 'EASY', normal: 'NORMAL', hard: 'HARD' }": "{ easy: 'FÁCIL', normal: 'NORMAL', hard: 'DIFÍCIL' }",
+              "easy: 'Relaxed rivals, generous rubber-banding.',": "easy: 'Rivais mais tranquilos e ajuda maior para acompanhar a corrida.',",
+              "normal: 'The classic Grand Prix challenge.',": "normal: 'O desafio clássico de uma grande corrida.',",
+              "hard: 'Ruthless AI, near-perfect lines, no mercy.',": "hard: 'IA agressiva, trajetórias quase perfeitas e sem piedade.',",
+              "{ key: 'speed', label: 'SPD' }": "{ key: 'speed', label: 'VEL' }",
+              "{ key: 'acceleration', label: 'ACC' }": "{ key: 'acceleration', label: 'ACE' }",
+              "{ key: 'handling', label: 'HND' }": "{ key: 'handling', label: 'DIR' }",
+              "{ key: 'weight', label: 'WGT' }": "{ key: 'weight', label: 'PESO' }",
+              "'ARCADE GRAND PRIX'": "'CORRIDA ARCADE'",
+              "'PRESS ENTER / CLICK TO START'": "'TOQUE NA TELA PARA COMEÇAR'",
+              "['W / ↑', 'Throttle']": "['W / ↑', 'Acelerar']",
+              "['S / ↓', 'Brake / Reverse']": "['S / ↓', 'Frear / Ré']",
+              "['A D / ← →', 'Steer']": "['A D / ← →', 'Virar']",
+              "['SPACE / SHIFT', 'Hop · Drift']": "['ESPAÇO / SHIFT', 'Pulo · Derrapagem']",
+              "['E / CTRL', 'Use item (hold BRAKE to throw back)']": "['E / CTRL', 'Usar item (segure FREIO para jogar para trás)']",
+              "['Q', 'Look back']": "['Q', 'Olhar para trás']",
+              "['ESC / P', 'Pause']": "['ESC / P', 'Pausar']",
+              "['M', 'Mute']": "['M', 'Silenciar']",
+              "'v1.0 · Three.js · 100% procedural · gamepad supported'": "'v1.0 · Three.js · suporte a controle'",
+              "'STEP 1 / 2'": "'ETAPA 1 / 2'",
+              "'CHOOSE YOUR RACER'": "'ESCOLHA SEU PILOTO'",
+              "button('← BACK'": "button('← VOLTAR'",
+              "button('CONTINUE →'": "button('CONTINUAR →'",
+              "'STEP 2 / 2'": "'ETAPA 2 / 2'",
+              "'PICK A CIRCUIT'": "'ESCOLHA UM CIRCUITO'",
+              "'DIFFICULTY'": "'DIFICULDADE'",
+              "button('START RACE'": "button('INICIAR CORRIDA'",
+              "pill.title = 'Weight class'": "pill.title = 'Categoria de peso'",
+            },
+            'src/ui/HUD.ts': {
+              "banana: 'BANANA'": "banana: 'BANANA'",
+              "green_shell: 'GREEN SHELL'": "green_shell: 'CASCO VERDE'",
+              "triple_green_shell: 'GREEN ×3'": "triple_green_shell: 'VERDE ×3'",
+              "red_shell: 'RED SHELL'": "red_shell: 'CASCO VERMELHO'",
+              "triple_red_shell: 'RED ×3'": "triple_red_shell: 'VERMELHO ×3'",
+              "blue_shell: 'BLUE SHELL'": "blue_shell: 'CASCO AZUL'",
+              "mushroom: 'MUSHROOM'": "mushroom: 'COGUMELO'",
+              "triple_mushroom: 'MUSHROOM ×3'": "triple_mushroom: 'COGUMELO ×3'",
+              "golden_mushroom: 'GOLDEN'": "golden_mushroom: 'DOURADO'",
+              "star: 'STAR'": "star: 'ESTRELA'",
+              "lightning: 'LIGHTNING'": "lightning: 'RAIO'",
+              "'LAP'": "'VOLTA'",
+              "'WRONG WAY'": "'SENTIDO ERRADO'",
+              "this.flashCenter('GO!'": "this.flashCenter('VAI!'",
+              "this.flashCenter('FINAL LAP!'": "this.flashCenter('ÚLTIMA VOLTA!'",
+              "this.flashCenter(`LAP ${e.lap}`": "this.flashCenter(`VOLTA ${e.lap}`",
+              "this.flashCenter('FINISH'": "this.flashCenter('CHEGADA'",
+              "ordinal(e.place).toUpperCase() + ' PLACE'": "`${e.place}º LUGAR`",
+            },
+            'src/ui/PauseMenu.ts': {
+              "'RACE PAUSED'": "'CORRIDA PAUSADA'",
+              "'PAUSED'": "'PAUSADO'",
+              "button('RESUME'": "button('CONTINUAR'",
+              "button('RESTART RACE'": "button('REINICIAR CORRIDA'",
+              "button('QUIT TO MENU'": "button('VOLTAR AO MENU'",
+              "'ESC / P  resume   ·   ↑↓  navigate   ·   ENTER  select'": "'ESC / P  continuar   ·   ↑↓  navegar   ·   ENTER  selecionar'",
+            },
+            'src/ui/ResultsScreen.ts': {
+              "'RACE COMPLETE'": "'CORRIDA CONCLUÍDA'",
+              "button('RACE AGAIN'": "button('CORRER NOVAMENTE'",
+              "button('CHANGE TRACK'": "button('TROCAR PISTA'",
+              "button('MAIN MENU'": "button('MENU PRINCIPAL'",
+              "place === 1 ? 'VICTORY!' : `${ordinal(place).toUpperCase()} PLACE`": "place === 1 ? 'VITÓRIA!' : `${place}º LUGAR`",
+              "'Untouchable. The crowd goes wild.'": "'Imbatível! A torcida vai à loucura.'",
+              "'Podium finish. Champagne is on ice.'": "'Pódio garantido! Grande corrida.'",
+              "'Solid run. The podium is within reach.'": "'Boa corrida. O pódio está cada vez mais perto.'",
+              "'Rough race. Time for revenge.'": "'Corrida difícil. Hora da revanche.'",
+              "s.name + (s.isPlayer ? '  (YOU)' : '')": "s.name + (s.isPlayer ? '  (VOCÊ)' : '')",
+              "? 'DNF'": "? 'NÃO TERMINOU'",
+            },
+            'src/ui/LoadingScreen.ts': {
+              "'Hold DRIFT (Space / Shift) through a corner and release for a mini-turbo. Longer drift = bigger boost.'": "'Segure DERRAPAGEM (Espaço / Shift) na curva e solte para ganhar mini-turbo. Quanto maior a derrapagem, maior o impulso.'",
+              "'Tap the throttle just as the countdown hits 1 for a rocket start. Hold it too early and you will spin out.'": "'Acelere quando a contagem chegar a 1 para uma largada turbo. Se acelerar cedo demais, o carro vai rodar.'",
+              "'Hold BRAKE while using a shell to throw it backwards.'": "'Segure FREIO ao usar um casco para lançá-lo para trás.'",
+              "'Press Q to look behind you. Check what is coming before dropping a banana.'": "'Pressione Q para olhar para trás. Veja quem está chegando antes de soltar uma banana.'",
+              "'Boost pads (glowing chevrons) give a free +45% speed burst. Line them up.'": "'As faixas de turbo dão um forte impulso de velocidade. Passe por cima delas.'",
+              "'Item odds depend on your place. Trailing racers get stars, lightning and blue shells.'": "'Os itens dependem da sua posição. Quem está atrás recebe itens mais fortes.'",
+              "'A star makes you invincible and destroys any hazard you touch.'": "'A estrela deixa você invencível e destrói obstáculos ao tocar neles.'",
+              "'Staying on the road matters: off-road cuts your top speed almost in half.'": "'Fique na pista: fora do asfalto a velocidade máxima cai bastante.'",
+              "'Use a mushroom on the long straight, or to recover after a hit.'": "'Use um cogumelo na reta longa ou para recuperar velocidade depois de uma batida.'",
+              "'Heavy karts bump light karts around. Pick your weight class wisely.'": "'Carros mais pesados empurram os mais leves. Escolha bem sua categoria.'",
+              "'Hop off jump crests for a small landing boost.'": "'Salte nas elevações para ganhar um pequeno impulso ao aterrissar.'",
+              "'Press M to mute the audio at any time.'": "'Pressione M para silenciar o áudio a qualquer momento.'",
+              "'NOW LOADING'": "'CARREGANDO'",
+              "'TIP'": "'DICA'",
+              "`${def.laps} LAPS  ·  ${stars}  ·  ${def.theme.toUpperCase()}`": "`${def.laps} VOLTAS  ·  ${stars}  ·  ${def.theme.toUpperCase()}`",
+            },
+          }
+
+          for path, reps in replacements.items():
+              p = Path(path)
+              s = p.read_text()
+              for old, new in reps.items():
+                  s = s.replace(old, new)
+              p.write_text(s)
+          PY
+
+      - name: Build check
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+      - name: Commit translation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/ui
+          git commit -m 'Translate visible game interface to Brazilian Portuguese'
+          git push origin HEAD:main
