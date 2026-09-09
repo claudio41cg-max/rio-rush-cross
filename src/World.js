@@ -11,10 +11,10 @@ const GROUND_THICKNESS = 0.5
 // Scenario only. Vehicle.js and the original driving mechanics remain untouched.
 const LOOP_RADIUS = 14
 const LOOP_WIDTH = 7.2
-const LOOP_SEGMENTS = 192
+const LOOP_SEGMENTS = 240
 const LOOP_CENTER_Z = -42
-const ACCESS_LENGTH = 28
-const ACCESS_SEGMENTS = 64
+const APPROACH_LENGTH = 34
+const APPROACH_SEGMENTS = 72
 
 export class World {
   constructor(scene, physicsWorld, reflectionMap = null) {
@@ -25,7 +25,7 @@ export class World {
     this.environmentParams = { ...DEFAULT_ENVIRONMENT_PARAMS }
 
     this._createLights()
-    this.ready = this._createAsphaltWithSmoothLoop()
+    this.ready = this._createAsphaltWithContinuousLoop()
   }
 
   _createLights() {
@@ -53,9 +53,9 @@ export class World {
     this.sun = sun
   }
 
-  async _createAsphaltWithSmoothLoop() {
+  async _createAsphaltWithContinuousLoop() {
     const group = new THREE.Group()
-    group.name = 'RioRushSmoothLoopEnvironment'
+    group.name = 'RioRushContinuousLoopEnvironment'
 
     const asphaltMaterial = new THREE.MeshStandardMaterial({
       color: 0x777b80,
@@ -92,86 +92,82 @@ export class World {
 
     const trackMaterial = new THREE.MeshStandardMaterial({
       color: 0x1557dc,
-      roughness: 0.38,
-      metalness: 0.08,
+      roughness: 0.36,
+      metalness: 0.07,
       side: THREE.DoubleSide,
     })
 
+    const halfWidth = LOOP_WIDTH * 0.5
+    const points = []
+
+    // Entry: a real straight approach that is flush with the asphalt and
+    // arrives exactly at the bottom tangent of the loop.
+    for (let i = 0; i <= APPROACH_SEGMENTS; i++) {
+      const t = i / APPROACH_SEGMENTS
+      const z = THREE.MathUtils.lerp(
+        LOOP_CENTER_Z + APPROACH_LENGTH,
+        LOOP_CENTER_Z,
+        t
+      )
+      points.push({ y: 0.01, z })
+    }
+
+    // Full circular loop. The first point is the same bottom tangent reached
+    // by the entry and the last point returns to it ready for the exit.
+    for (let i = 1; i <= LOOP_SEGMENTS; i++) {
+      const angle = (i / LOOP_SEGMENTS) * Math.PI * 2
+      points.push({
+        y: LOOP_RADIUS - LOOP_RADIUS * Math.cos(angle) + 0.01,
+        z: LOOP_CENTER_Z - LOOP_RADIUS * Math.sin(angle),
+      })
+    }
+
+    // Exit: continues from the same bottom tangent toward the opposite side.
+    for (let i = 1; i <= APPROACH_SEGMENTS; i++) {
+      const t = i / APPROACH_SEGMENTS
+      const z = THREE.MathUtils.lerp(
+        LOOP_CENTER_Z,
+        LOOP_CENTER_Z - APPROACH_LENGTH,
+        t
+      )
+      points.push({ y: 0.01, z })
+    }
+
+    const positions = []
+    const indices = []
+
+    for (const point of points) {
+      positions.push(-halfWidth, point.y, point.z)
+      positions.push(halfWidth, point.y, point.z)
+    }
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = i * 2
+      const b = (i + 1) * 2
+      indices.push(a, a + 1, b, a + 1, b + 1, b)
+    }
+
+    const loopGeometry = new THREE.BufferGeometry()
+    loopGeometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(positions, 3)
+    )
+    loopGeometry.setIndex(indices)
+    loopGeometry.computeVertexNormals()
+
+    const loopMesh = new THREE.Mesh(loopGeometry, trackMaterial)
+    loopMesh.name = 'ContinuousLoopWithEntryAndExit'
+    loopMesh.castShadow = true
+    loopMesh.receiveShadow = true
+    group.add(loopMesh)
+
+    // One matching continuous collider: there are no box edges or separate
+    // blue strips for the tyres to hit on the way in or out.
     const loopBody = new CANNON.Body({
       mass: 0,
       material: this.physicsWorld.defaultMaterial,
     })
-
-    const addSurface = (positions, indices, name) => {
-      const geometry = new THREE.BufferGeometry()
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-      geometry.setIndex(indices)
-      geometry.computeVertexNormals()
-
-      const mesh = new THREE.Mesh(geometry, trackMaterial)
-      mesh.name = name
-      mesh.castShadow = true
-      mesh.receiveShadow = true
-      group.add(mesh)
-
-      this._addTrimeshColliderShape(loopBody, geometry)
-    }
-
-    // One continuous, high-resolution ribbon for the loop itself.
-    // No boxes and no vertical leading wall: the tyre sees only a smooth surface.
-    const loopPositions = []
-    const loopIndices = []
-    const halfWidth = LOOP_WIDTH * 0.5
-
-    for (let i = 0; i <= LOOP_SEGMENTS; i++) {
-      const t = i / LOOP_SEGMENTS
-      const angle = t * Math.PI * 2
-      const y = LOOP_RADIUS - LOOP_RADIUS * Math.cos(angle) + 0.012
-      const z = LOOP_CENTER_Z - LOOP_RADIUS * Math.sin(angle)
-
-      loopPositions.push(-halfWidth, y, z)
-      loopPositions.push(halfWidth, y, z)
-    }
-
-    for (let i = 0; i < LOOP_SEGMENTS; i++) {
-      const a = i * 2
-      const b = (i + 1) * 2
-      loopIndices.push(a, a + 1, b, a + 1, b + 1, b)
-    }
-
-    addSurface(loopPositions, loopIndices, 'SmoothLoop')
-
-    const createAccess = (direction) => {
-      const positions = []
-      const indices = []
-
-      // direction +1 = approach side, -1 = exit side.
-      for (let i = 0; i <= ACCESS_SEGMENTS; i++) {
-        const t = i / ACCESS_SEGMENTS
-        // Far end is exactly flush with asphalt; near end meets the loop at its bottom tangent.
-        const smooth = t * t * (3 - 2 * t)
-        const z = LOOP_CENTER_Z + direction * ACCESS_LENGTH * (1 - t)
-        const y = THREE.MathUtils.lerp(0.002, 0.012, smooth)
-
-        positions.push(-halfWidth, y, z)
-        positions.push(halfWidth, y, z)
-      }
-
-      for (let i = 0; i < ACCESS_SEGMENTS; i++) {
-        const a = i * 2
-        const b = (i + 1) * 2
-        indices.push(a, a + 1, b, a + 1, b + 1, b)
-      }
-
-      addSurface(
-        positions,
-        indices,
-        direction > 0 ? 'LoopEntrance' : 'LoopExit'
-      )
-    }
-
-    createAccess(1)
-    createAccess(-1)
+    this._addTrimeshColliderShape(loopBody, loopGeometry)
 
     this.scene.add(group)
     this.house = group
