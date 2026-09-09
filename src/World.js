@@ -1,8 +1,5 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-
-import levelUrl from './assets/rc-level.glb?url'
 
 export const DEFAULT_ENVIRONMENT_PARAMS = {
   offsetY: 0,
@@ -10,11 +7,14 @@ export const DEFAULT_ENVIRONMENT_PARAMS = {
 
 const GROUND_SIZE = 300
 const GROUND_THICKNESS = 0.5
-const ORIGINAL_LEVEL_SCALE = 3
-const LOOP_SCALE = 1.12
-const LOOP_TARGET_Z = -40
-const ACCESS_LENGTH = 24
-const ACCESS_STEPS = 48
+
+// Scenario only. Vehicle.js and the original driving mechanics remain untouched.
+const LOOP_RADIUS = 14
+const LOOP_WIDTH = 7.2
+const LOOP_SEGMENTS = 192
+const LOOP_CENTER_Z = -42
+const ACCESS_LENGTH = 28
+const ACCESS_SEGMENTS = 64
 
 export class World {
   constructor(scene, physicsWorld, reflectionMap = null) {
@@ -25,7 +25,7 @@ export class World {
     this.environmentParams = { ...DEFAULT_ENVIRONMENT_PARAMS }
 
     this._createLights()
-    this.ready = this._createAsphaltWithOriginalLoop()
+    this.ready = this._createAsphaltWithSmoothLoop()
   }
 
   _createLights() {
@@ -53,9 +53,9 @@ export class World {
     this.sun = sun
   }
 
-  async _createAsphaltWithOriginalLoop() {
+  async _createAsphaltWithSmoothLoop() {
     const group = new THREE.Group()
-    group.name = 'RioRushLoopOnlyEnvironment'
+    group.name = 'RioRushSmoothLoopEnvironment'
 
     const asphaltMaterial = new THREE.MeshStandardMaterial({
       color: 0x777b80,
@@ -90,136 +90,88 @@ export class World {
     this.physicsWorld.addBody(groundBody)
     this.colliderBody = groundBody
 
-    const loader = new GLTFLoader()
-    const gltf = await loader.loadAsync(levelUrl)
-    const original = gltf.scene
-    original.scale.setScalar(ORIGINAL_LEVEL_SCALE)
-    original.updateMatrixWorld(true)
-
-    const meshInfos = []
-    original.traverse((mesh) => {
-      if (!mesh.isMesh || !mesh.geometry?.attributes?.position) return
-
-      const box = new THREE.Box3().setFromObject(mesh)
-      if (box.isEmpty()) return
-
-      const size = box.getSize(new THREE.Vector3())
-      const center = box.getCenter(new THREE.Vector3())
-      const name = `${mesh.name} ${mesh.parent?.name ?? ''}`.toLowerCase()
-      const nameBonus = /loop|ring|circle|stunt/.test(name) ? 1000 : 0
-      const horizontalSpan = Math.max(size.x, size.z, 0.001)
-      const compactness = size.y / horizontalSpan
-      const score = nameBonus + size.y * 20 + compactness * 100 - horizontalSpan * 0.35
-
-      meshInfos.push({ mesh, box, size, center, score })
-    })
-
-    if (meshInfos.length === 0) {
-      throw new Error('The original rc-level.glb contains no usable meshes')
-    }
-
-    meshInfos.sort((a, b) => b.score - a.score)
-    const anchor = meshInfos[0]
-
-    // Use the real original loop mesh as the reference instead of rebuilding it from blocks.
-    const loopGeometry = anchor.mesh.geometry.clone()
-    loopGeometry.applyMatrix4(anchor.mesh.matrixWorld)
-
-    const originalLoopBox = new THREE.Box3().setFromBufferAttribute(loopGeometry.attributes.position)
-    const originalCenter = originalLoopBox.getCenter(new THREE.Vector3())
-    const originalBottom = originalLoopBox.min.y
-
-    loopGeometry.translate(-originalCenter.x, -originalBottom, -originalCenter.z)
-    loopGeometry.scale(LOOP_SCALE, LOOP_SCALE, LOOP_SCALE)
-    loopGeometry.translate(0, 0.018, LOOP_TARGET_Z)
-    loopGeometry.computeVertexNormals()
-
-    const loopMaterial = new THREE.MeshStandardMaterial({
+    const trackMaterial = new THREE.MeshStandardMaterial({
       color: 0x1557dc,
       roughness: 0.38,
       metalness: 0.08,
       side: THREE.DoubleSide,
     })
 
-    const loopVisual = new THREE.Mesh(loopGeometry, loopMaterial)
-    loopVisual.name = 'OriginalLoopOnly'
-    loopVisual.castShadow = true
-    loopVisual.receiveShadow = true
-    group.add(loopVisual)
-
     const loopBody = new CANNON.Body({
       mass: 0,
       material: this.physicsWorld.defaultMaterial,
     })
-    this._addTrimeshColliderShape(loopBody, loopGeometry)
 
-    const loopBox = new THREE.Box3().setFromBufferAttribute(loopGeometry.attributes.position)
-    const loopSize = loopBox.getSize(new THREE.Vector3())
-    const loopCenter = loopBox.getCenter(new THREE.Vector3())
-
-    // Infer which horizontal axis the car travels through the original loop.
-    const travelAlongX = Math.abs(loopSize.x - loopSize.y) < Math.abs(loopSize.z - loopSize.y)
-    const halfTravelSpan = (travelAlongX ? loopSize.x : loopSize.z) * 0.5
-    const crossSpan = travelAlongX ? loopSize.z : loopSize.x
-    const accessWidth = THREE.MathUtils.clamp(crossSpan * 0.82, 5.5, 8.5)
-
-    const accessMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1557dc,
-      roughness: 0.4,
-      metalness: 0.06,
-      side: THREE.DoubleSide,
-    })
-
-    // A zero-thickness driving surface avoids the vertical front wall that was
-    // stopping the tyres. It starts exactly at asphalt height and rises smoothly
-    // into the bottom tangent of the loop. The exit is the mirrored surface.
-    const createAccessSurface = (side) => {
-      const positions = []
-      const indices = []
-      const halfWidth = accessWidth * 0.5
-      const joinTravel = side * halfTravelSpan
-      const outerTravel = side * (halfTravelSpan + ACCESS_LENGTH)
-
-      for (let i = 0; i <= ACCESS_STEPS; i++) {
-        const t = i / ACCESS_STEPS
-        // t=0 is the asphalt end; t=1 meets the loop.
-        const smooth = t * t * (3 - 2 * t)
-        const travel = THREE.MathUtils.lerp(outerTravel, joinTravel, t)
-        // Start flush with asphalt. Only a tiny lift at the loop prevents z-fighting.
-        const y = THREE.MathUtils.lerp(0.006, 0.022, smooth)
-
-        if (travelAlongX) {
-          const x = loopCenter.x + travel
-          positions.push(x, y, loopCenter.z - halfWidth)
-          positions.push(x, y, loopCenter.z + halfWidth)
-        } else {
-          const z = loopCenter.z + travel
-          positions.push(loopCenter.x - halfWidth, y, z)
-          positions.push(loopCenter.x + halfWidth, y, z)
-        }
-      }
-
-      for (let i = 0; i < ACCESS_STEPS; i++) {
-        const a = i * 2
-        const b = (i + 1) * 2
-        indices.push(a, a + 1, b, a + 1, b + 1, b)
-      }
-
+    const addSurface = (positions, indices, name) => {
       const geometry = new THREE.BufferGeometry()
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
       geometry.setIndex(indices)
       geometry.computeVertexNormals()
 
-      const mesh = new THREE.Mesh(geometry, accessMaterial)
-      mesh.name = side < 0 ? 'LoopEntrance' : 'LoopExit'
+      const mesh = new THREE.Mesh(geometry, trackMaterial)
+      mesh.name = name
+      mesh.castShadow = true
       mesh.receiveShadow = true
       group.add(mesh)
 
       this._addTrimeshColliderShape(loopBody, geometry)
     }
 
-    createAccessSurface(-1)
-    createAccessSurface(1)
+    // One continuous, high-resolution ribbon for the loop itself.
+    // No boxes and no vertical leading wall: the tyre sees only a smooth surface.
+    const loopPositions = []
+    const loopIndices = []
+    const halfWidth = LOOP_WIDTH * 0.5
+
+    for (let i = 0; i <= LOOP_SEGMENTS; i++) {
+      const t = i / LOOP_SEGMENTS
+      const angle = t * Math.PI * 2
+      const y = LOOP_RADIUS - LOOP_RADIUS * Math.cos(angle) + 0.012
+      const z = LOOP_CENTER_Z - LOOP_RADIUS * Math.sin(angle)
+
+      loopPositions.push(-halfWidth, y, z)
+      loopPositions.push(halfWidth, y, z)
+    }
+
+    for (let i = 0; i < LOOP_SEGMENTS; i++) {
+      const a = i * 2
+      const b = (i + 1) * 2
+      loopIndices.push(a, a + 1, b, a + 1, b + 1, b)
+    }
+
+    addSurface(loopPositions, loopIndices, 'SmoothLoop')
+
+    const createAccess = (direction) => {
+      const positions = []
+      const indices = []
+
+      // direction +1 = approach side, -1 = exit side.
+      for (let i = 0; i <= ACCESS_SEGMENTS; i++) {
+        const t = i / ACCESS_SEGMENTS
+        // Far end is exactly flush with asphalt; near end meets the loop at its bottom tangent.
+        const smooth = t * t * (3 - 2 * t)
+        const z = LOOP_CENTER_Z + direction * ACCESS_LENGTH * (1 - t)
+        const y = THREE.MathUtils.lerp(0.002, 0.012, smooth)
+
+        positions.push(-halfWidth, y, z)
+        positions.push(halfWidth, y, z)
+      }
+
+      for (let i = 0; i < ACCESS_SEGMENTS; i++) {
+        const a = i * 2
+        const b = (i + 1) * 2
+        indices.push(a, a + 1, b, a + 1, b + 1, b)
+      }
+
+      addSurface(
+        positions,
+        indices,
+        direction > 0 ? 'LoopEntrance' : 'LoopExit'
+      )
+    }
+
+    createAccess(1)
+    createAccess(-1)
 
     this.scene.add(group)
     this.house = group
