@@ -7,6 +7,8 @@ import { Game } from './game/Game';
 import { el } from './ui/dom';
 import { showToast } from './ui/toast';
 
+let activeGame: Game | null = null;
+
 function hasWebGL2(): boolean {
   try {
     const canvas = document.createElement('canvas');
@@ -61,6 +63,7 @@ function boot(): void {
 
   try {
     const game = new Game(app);
+    activeGame = game;
     game.start();
     (window as unknown as { __turboKartRush?: Game }).__turboKartRush = game;
   } catch (err) {
@@ -75,7 +78,7 @@ if (document.readyState === 'loading') {
   boot();
 }
 
-// Controles de celular: grandes, simples e próprios para jogar com a tela deitada.
+// Controles de celular: só aparecem quando a corrida começa.
 const mobile = document.createElement('div');
 mobile.id = 'rio-mobile-controls';
 mobile.innerHTML = `
@@ -85,6 +88,13 @@ mobile.innerHTML = `
   <button id="rio-brake" class="rio-pad rio-drive"><span class="rio-icon">▼</span><span class="rio-label">FREIO</span></button>
   <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">ACELERAR</span></button>`;
 document.body.appendChild(mobile);
+
+function syncMobileControls(): void {
+  const state = activeGame?.currentState;
+  mobile.classList.toggle('race-active', state === 'countdown' || state === 'racing');
+  requestAnimationFrame(syncMobileControls);
+}
+requestAnimationFrame(syncMobileControls);
 
 const keyMap: Record<string,string> = {
   'rio-left':'ArrowLeft',
