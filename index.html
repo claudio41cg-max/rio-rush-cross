@@ -105,16 +105,18 @@
 
     <script type="module" src="/src/main.js"></script>
     <script>
-      // Mobile brake reuses the car's existing ArrowDown braking behavior.
-      // No vehicle physics values are changed.
+      // Real mobile brake: reuses the car's existing handbrake input without
+      // changing Vehicle.js or any physics value. `repeat: true` prevents the
+      // original Space key handler from triggering the jump action.
       (() => {
         const button = document.getElementById('mobile-brake')
         if (!button) return
         let pressed = false
-        const keyDown = () => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowDown', key: 'ArrowDown', bubbles: true }))
-        const keyUp = () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowDown', key: 'ArrowDown', bubbles: true }))
+        const keyDown = () => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ', repeat: true, bubbles: true }))
+        const keyUp = () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ', bubbles: true }))
         const start = (event) => {
           event.preventDefault()
+          if (pressed) return
           pressed = true
           button.classList.add('is-active')
           keyDown()
