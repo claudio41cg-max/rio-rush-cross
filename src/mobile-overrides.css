@@ -1,0 +1,90 @@
+/* RC RUSH — controles claros e botões mais simples */
+.btn {
+  border-radius: 12px !important;
+  min-height: 52px;
+  padding: 12px 22px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.btn.start {
+  border-radius: 14px !important;
+  min-width: 190px;
+  min-height: 60px;
+}
+.seg {
+  border-radius: 10px !important;
+  min-height: 46px;
+  font-weight: 800;
+}
+
+#rio-mobile-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+}
+@media (pointer: coarse) {
+  #rio-mobile-controls { display: block; }
+}
+.rio-pad {
+  position: absolute;
+  bottom: 16px;
+  width: 86px;
+  height: 68px;
+  border-radius: 15px;
+  border: 2px solid rgba(255,255,255,.82);
+  background: linear-gradient(180deg,rgba(25,32,48,.90),rgba(7,12,23,.84));
+  color: #fff;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  box-shadow: 0 7px 18px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.22);
+}
+.rio-pad:active {
+  transform: translateY(2px) scale(.97);
+  background: linear-gradient(180deg,rgba(54,88,128,.96),rgba(16,30,52,.94));
+}
+.rio-icon {
+  display: block;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 900;
+}
+.rio-label {
+  display: block;
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1;
+  font-family: system-ui,sans-serif;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+#rio-left { left: 14px; }
+#rio-right { left: 108px; }
+#rio-brake { right: 108px; }
+#rio-gas { right: 14px; }
+#rio-item {
+  right: 61px;
+  bottom: 94px;
+  width: 92px;
+  height: 62px;
+  border-color: rgba(255,218,66,.95);
+  background: linear-gradient(180deg,rgba(255,139,33,.96),rgba(191,54,18,.94));
+  box-shadow: 0 7px 20px rgba(255,91,28,.32), inset 0 1px 0 rgba(255,255,255,.30);
+}
+#rio-item .rio-icon { font-size: 24px; }
+#rio-item .rio-label { font-size: 11px; }
+
+@media (max-height: 430px) {
+  .rio-pad { width: 78px; height: 60px; bottom: 10px; }
+  #rio-right { left: 99px; }
+  #rio-brake { right: 99px; }
+  #rio-item { right: 55px; bottom: 78px; width: 86px; height: 56px; }
+}
