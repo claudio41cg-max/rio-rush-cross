@@ -25,8 +25,8 @@ export function installRioRushRCModel(parts:KartModelPartsEx,character:Character
     const box=new THREE.Box3().setFromObject(body),size=new THREE.Vector3();box.getSize(size);const scale=1.9/Math.max(size.x,size.z,.001);
     body.scale.setScalar(scale);body.rotation.y=0;body.position.y=.12;tintBody(body,character.color,character.accent);rc.add(body);
     for(const wheel of [fl,fr,rl,rr]){wheel.scale.setScalar(scale);wheel.position.y+=.12;rc.add(wheel);}
-    // Slightly larger than before so the RC is easier to see on a phone screen.
-    rc.scale.setScalar(1.20);rc.position.y=.01;
+    // Keep all racers at the approved visual size, but lower the model so the tyres sit on the road instead of looking airborne.
+    rc.scale.setScalar(1.20);rc.position.y=-.10;
     for(const child of oldChildren)child.visible=false;
   }).catch((err)=>{console.error('[RC Rush] Falha ao carregar o modelo RC; mantendo o carro provisório.',err);rc.removeFromParent();for(const child of oldChildren)child.visible=true;});
 }
