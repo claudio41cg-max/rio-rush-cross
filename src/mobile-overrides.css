@@ -71,6 +71,28 @@
 #rio-item .rio-icon { font-size:19px; }
 #rio-item .rio-label { font-size:9px;margin-top:2px; }
 
+.rio-tilt {
+  position:absolute;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  pointer-events:auto;
+  touch-action:manipulation;
+  border:1px solid rgba(255,255,255,.58);
+  background:rgba(12,18,32,.78);
+  color:#fff;
+  border-radius:10px;
+  padding:7px 12px;
+  font:800 10px/1 system-ui,sans-serif;
+  letter-spacing:.05em;
+  box-shadow:0 5px 14px rgba(0,0,0,.25);
+}
+.rio-tilt.active {
+  border-color:#77f59a;
+  background:rgba(18,94,50,.86);
+  box-shadow:0 0 14px rgba(76,255,130,.35);
+}
+
 .hud-speed {
   bottom:-10px !important;
   left:50% !important;
@@ -128,15 +150,11 @@
   .panel-chars .select-info-tagline { display:none !important; }
 }
 
-/* HUD mais limpo: mapa menor e sem placas escuras atrás do mapa/volta/tempo. */
-.hud-minimap {
-  transform: scale(.82) !important;
-  transform-origin: right bottom !important;
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+/* HUD direito: VOLTA no alto, tempo logo abaixo e minimapa menor, mais alto e levemente para a esquerda. */
+.hud-topright {
+  top:10px !important;
+  right:22px !important;
+  gap:0 !important;
 }
 .hud-lap,
 .hud-timer {
@@ -146,15 +164,31 @@
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+.hud-lap { padding:2px 4px !important; }
+.hud-timer { padding:0 4px !important; margin-top:2px !important; }
+.hud-minimap {
+  top:90px !important;
+  right:104px !important;
+  bottom:auto !important;
+  transform:scale(.68) !important;
+  transform-origin:right top !important;
+  background:transparent !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
 
 @media (max-height:430px) {
   .rio-pad { width:78px;height:60px;bottom:10px; }
   #rio-right { left:99px; }
   #rio-brake { right:99px; }
   #rio-item { right:18px;bottom:76px;width:64px;height:46px; }
+  .rio-tilt { top:7px;padding:6px 10px;font-size:9px; }
   .hud-speed { bottom:-15px !important;transform:translateX(-50%) scale(.78) !important; }
   .hud-place { left:24px !important;bottom:82px !important; }
   .hud-place .place-num { font-size:58px !important; }
   .hud-place .place-suffix { font-size:21px !important; }
-  .hud-minimap { transform: scale(.76) !important; }
+  .hud-topright { top:5px !important;right:18px !important; }
+  .hud-minimap { top:72px !important;right:92px !important;transform:scale(.61) !important; }
 }
