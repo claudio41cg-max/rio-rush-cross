@@ -1,0 +1,87 @@
+name: Finish pt-BR and validate RC fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/finish-ptbr-and-rc-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Translate remaining visible text
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def rep(path, pairs):
+              p=Path(path); s=p.read_text()
+              for a,b in pairs: s=s.replace(a,b)
+              p.write_text(s)
+
+          rep('src/kart/roster.ts', [
+            ("Blink and she is already two corners ahead.", "Piscou e ela já está duas curvas na frente."),
+            ("Sugar-rush handling. Corners are her candy.", "Direção leve e rápida. Curvas são a especialidade dela."),
+            ("Big ears, bigger mini-turbos.", "Pequeno no tamanho, grande no mini-turbo."),
+            ("The all-rounder. Every lap is a highlight reel.", "Equilibrado em tudo. Cada volta é um espetáculo."),
+            ("Charges every drift like a thunderstorm.", "Entra em cada derrapagem como uma tempestade."),
+            ("Cool as the deep end, smooth as a swell.", "Frio na cabeça e suave nas curvas."),
+            ("Slow to wake up. Impossible to shove.", "Demora a embalar, mas é quase impossível empurrar."),
+            ("Eighteen wheels of attitude in a four-wheel kart.", "Força de caminhão em um carro de quatro rodas."),
+          ])
+
+          rep('src/ui/MainMenu.ts', [
+            ("const CHAR_COLUMNS = 4;", "const WEIGHT_LABEL: Record<CharacterDef['weightClass'], string> = { light: 'LEVE', medium: 'MÉDIO', heavy: 'PESADO' };\nconst CHAR_COLUMNS = 4;"),
+            ("c.weightClass.toUpperCase(), card", "WEIGHT_LABEL[c.weightClass], card"),
+            ("pill.title = 'Weight class';", "pill.title = 'Categoria de peso';"),
+          ])
+
+          rep('src/track/tracks/sunnyCircuit.ts', [
+            ("name: 'Sunny Circuit'", "name: 'Circuito Ensolarado'"),
+            ("description: 'Rolling green hills, a long start straight and one tricky hairpin. The perfect warm-up.'", "description: 'Colinas verdes, uma longa reta de largada e um grampo traiçoeiro. Perfeito para começar.'"),
+          ])
+          rep('src/track/tracks/duneDrift.ts', [
+            ("name: 'Dune Drift'", "name: 'Derrapagem nas Dunas'"),
+            ("description: 'Sunset sweepers, a canyon run between towering sandstone walls and two hairpins that punish greed.'", "description: 'Curvas ao pôr do sol, um cânion entre paredões de pedra e dois grampos que exigem cuidado.'"),
+          ])
+          rep('src/track/tracks/frostbiteFalls.ts', [
+            ("name: 'Frostbite Falls'", "name: 'Quedas Congeladas'"),
+            ("description: 'A plunging descent onto a frozen lake causeway with nothing but ice between you and the drop.'", "description: 'Uma descida forte até um lago congelado, com gelo e precipícios exigindo atenção total.'"),
+          ])
+          rep('src/track/tracks/neonNexus.ts', [
+            ("name: 'Neon Nexus'", "name: 'Nexo Neon'"),
+            ("description: 'Three hairpins, a rooftop jump and a flat-out neon straight under a violet sky. Experts only.'", "description: 'Três grampos, um salto e uma reta de neon sob o céu violeta. Para pilotos experientes.'"),
+          ])
+
+          rep('src/ui/LoadingScreen.ts', [
+            ("const TIP_INTERVAL = 2.4;", "const THEME_LABEL: Record<string,string> = { grassland:'CAMPO', desert:'DESERTO', snow:'NEVE', neon:'NEON' };\nconst TIP_INTERVAL = 2.4;"),
+            ("${def.theme.toUpperCase()}", "${THEME_LABEL[def.theme] ?? def.theme.toUpperCase()}"),
+          ])
+
+          rep('src/ui/ResultsScreen.ts', [
+            ("'  (YOU)'", "'  (VOCÊ)'"),
+            ("? 'DNF'", "? 'NÃO TERMINOU'"),
+          ])
+          PY
+
+      - name: Build check
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src
+          git commit -m 'Finish Portuguese UI and data labels' || exit 0
+          git push origin HEAD:main
