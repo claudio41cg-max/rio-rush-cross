@@ -33,8 +33,10 @@ export class Track implements ITrack {
   this.checkpoints=this.buildCheckpoints(); this.startGrid=this.buildStartGrid(); this.itemBoxPositions=computeItemBoxPositions(ctx,ITEM_BOX_ROW_SIZE); this.minimap=this.buildMinimap();
   const root=new THREE.Group(); root.name=`track:${def.id}`; root.add(buildSky(ctx)); root.add(buildTerrain(ctx)); root.add(buildMountains(ctx)); root.add(buildRoad(ctx)); root.add(buildBarriers(ctx));
   const cleanCoastal=def.id==='coastal_rush';
-  if(!cleanCoastal){ root.add(buildDecorations(ctx)); root.add(buildLandmarks(ctx)); root.add(buildGrandstands(ctx)); root.add(buildGantry(ctx)); root.add(buildSponsorBridges(ctx)); root.add(buildAnimatedProps(ctx)); }
-  if(def.id==='summer_beach'||def.id==='summer_sunset'||def.id==='summer_tropical') root.add(buildSummerScenery(ctx));
+  const specialSummer=def.id==='summer_beach'||def.id==='summer_sunset'||def.id==='summer_tropical';
+  if(!cleanCoastal&&!specialSummer){ root.add(buildDecorations(ctx)); root.add(buildLandmarks(ctx)); }
+  if(!cleanCoastal){ root.add(buildGrandstands(ctx)); root.add(buildGantry(ctx)); root.add(buildSponsorBridges(ctx)); root.add(buildAnimatedProps(ctx)); }
+  if(specialSummer) root.add(buildSummerScenery(ctx));
   const pads:BoostPadInfo[]=[]; const padGroup=buildBoostPads(ctx,pads); if(padGroup) root.add(padGroup); this.boostPads=pads; this.boostPadHalfWidths=new Float64Array(this.boostPadTs.length); for(let i=0;i<pads.length&&i<this.boostPadHalfWidths.length;i++) this.boostPadHalfWidths[i]=pads[i].halfWidth;
   this.object=root;
  }
