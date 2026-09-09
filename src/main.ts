@@ -8,6 +8,7 @@ import { Game } from './game/Game';
 import { el } from './ui/dom';
 import { showToast } from './ui/toast';
 import { installChampionshipPreview } from './ui/ChampionshipPreview';
+import './ui/ChampionshipHotfix';
 
 let activeGame: Game | null = null;
 
