@@ -13,9 +13,8 @@ const GROUND_THICKNESS = 0.5
 const ORIGINAL_LEVEL_SCALE = 3
 const LOOP_SCALE = 1.12
 const LOOP_TARGET_Z = -40
-const RAMP_LENGTH = 22
-const RAMP_THICKNESS = 0.12
-const RAMP_STEPS = 28
+const ACCESS_LENGTH = 24
+const ACCESS_STEPS = 48
 
 export class World {
   constructor(scene, physicsWorld, reflectionMap = null) {
@@ -58,7 +57,6 @@ export class World {
     const group = new THREE.Group()
     group.name = 'RioRushLoopOnlyEnvironment'
 
-    // Lighter medium-gray asphalt so the black tires remain visible.
     const asphaltMaterial = new THREE.MeshStandardMaterial({
       color: 0x777b80,
       roughness: 0.97,
@@ -123,20 +121,17 @@ export class World {
     meshInfos.sort((a, b) => b.score - a.score)
     const anchor = meshInfos[0]
 
-    // Keep ONLY the real loop mesh. No nearby blocks, buildings, ramps or obstacles.
+    // Use the real original loop mesh as the reference instead of rebuilding it from blocks.
     const loopGeometry = anchor.mesh.geometry.clone()
     loopGeometry.applyMatrix4(anchor.mesh.matrixWorld)
 
-    const originalLoopBox = new THREE.Box3().setFromBufferAttribute(
-      loopGeometry.attributes.position
-    )
+    const originalLoopBox = new THREE.Box3().setFromBufferAttribute(loopGeometry.attributes.position)
     const originalCenter = originalLoopBox.getCenter(new THREE.Vector3())
     const originalBottom = originalLoopBox.min.y
 
-    // Increase the loop a little, keeping its bottom near the asphalt.
     loopGeometry.translate(-originalCenter.x, -originalBottom, -originalCenter.z)
     loopGeometry.scale(LOOP_SCALE, LOOP_SCALE, LOOP_SCALE)
-    loopGeometry.translate(0, 0.06, LOOP_TARGET_Z)
+    loopGeometry.translate(0, 0.018, LOOP_TARGET_Z)
     loopGeometry.computeVertexNormals()
 
     const loopMaterial = new THREE.MeshStandardMaterial({
@@ -160,62 +155,54 @@ export class World {
 
     const loopBox = new THREE.Box3().setFromBufferAttribute(loopGeometry.attributes.position)
     const loopSize = loopBox.getSize(new THREE.Vector3())
+    const loopCenter = loopBox.getCenter(new THREE.Vector3())
 
-    // Detect the loop travel axis automatically from the original geometry.
+    // Infer which horizontal axis the car travels through the original loop.
     const travelAlongX = Math.abs(loopSize.x - loopSize.y) < Math.abs(loopSize.z - loopSize.y)
-    const rampWidth = THREE.MathUtils.clamp(
-      travelAlongX ? loopSize.z * 0.85 : loopSize.x * 0.85,
-      5.5,
-      8.5
-    )
+    const halfTravelSpan = (travelAlongX ? loopSize.x : loopSize.z) * 0.5
+    const crossSpan = travelAlongX ? loopSize.z : loopSize.x
+    const accessWidth = THREE.MathUtils.clamp(crossSpan * 0.82, 5.5, 8.5)
 
-    const rampMaterial = new THREE.MeshStandardMaterial({
+    const accessMaterial = new THREE.MeshStandardMaterial({
       color: 0x1557dc,
       roughness: 0.4,
       metalness: 0.06,
       side: THREE.DoubleSide,
     })
 
-    const createThinRamp = (direction) => {
+    // A zero-thickness driving surface avoids the vertical front wall that was
+    // stopping the tyres. It starts exactly at asphalt height and rises smoothly
+    // into the bottom tangent of the loop. The exit is the mirrored surface.
+    const createAccessSurface = (side) => {
       const positions = []
       const indices = []
-      const halfWidth = rampWidth * 0.5
+      const halfWidth = accessWidth * 0.5
+      const joinTravel = side * halfTravelSpan
+      const outerTravel = side * (halfTravelSpan + ACCESS_LENGTH)
 
-      for (let i = 0; i <= RAMP_STEPS; i++) {
-        const t = i / RAMP_STEPS
+      for (let i = 0; i <= ACCESS_STEPS; i++) {
+        const t = i / ACCESS_STEPS
+        // t=0 is the asphalt end; t=1 meets the loop.
         const smooth = t * t * (3 - 2 * t)
-        const distance = RAMP_LENGTH * t * direction
-        const yTop = 0.025 + smooth * 0.035
-        const yBottom = yTop - RAMP_THICKNESS
-
-        const centerX = travelAlongX ? distance : 0
-        const centerZ = travelAlongX ? LOOP_TARGET_Z : LOOP_TARGET_Z + distance
+        const travel = THREE.MathUtils.lerp(outerTravel, joinTravel, t)
+        // Start flush with asphalt. Only a tiny lift at the loop prevents z-fighting.
+        const y = THREE.MathUtils.lerp(0.006, 0.022, smooth)
 
         if (travelAlongX) {
-          positions.push(centerX, yTop, centerZ - halfWidth)
-          positions.push(centerX, yTop, centerZ + halfWidth)
-          positions.push(centerX, yBottom, centerZ - halfWidth)
-          positions.push(centerX, yBottom, centerZ + halfWidth)
+          const x = loopCenter.x + travel
+          positions.push(x, y, loopCenter.z - halfWidth)
+          positions.push(x, y, loopCenter.z + halfWidth)
         } else {
-          positions.push(centerX - halfWidth, yTop, centerZ)
-          positions.push(centerX + halfWidth, yTop, centerZ)
-          positions.push(centerX - halfWidth, yBottom, centerZ)
-          positions.push(centerX + halfWidth, yBottom, centerZ)
+          const z = loopCenter.z + travel
+          positions.push(loopCenter.x - halfWidth, y, z)
+          positions.push(loopCenter.x + halfWidth, y, z)
         }
       }
 
-      for (let i = 0; i < RAMP_STEPS; i++) {
-        const a = i * 4
-        const b = (i + 1) * 4
-
-        // top
+      for (let i = 0; i < ACCESS_STEPS; i++) {
+        const a = i * 2
+        const b = (i + 1) * 2
         indices.push(a, a + 1, b, a + 1, b + 1, b)
-        // bottom
-        indices.push(a + 2, b + 2, a + 3, a + 3, b + 2, b + 3)
-        // left side
-        indices.push(a, b, a + 2, a + 2, b, b + 2)
-        // right side
-        indices.push(a + 1, a + 3, b + 1, a + 3, b + 3, b + 1)
       }
 
       const geometry = new THREE.BufferGeometry()
@@ -223,17 +210,16 @@ export class World {
       geometry.setIndex(indices)
       geometry.computeVertexNormals()
 
-      const mesh = new THREE.Mesh(geometry, rampMaterial)
-      mesh.castShadow = true
+      const mesh = new THREE.Mesh(geometry, accessMaterial)
+      mesh.name = side < 0 ? 'LoopEntrance' : 'LoopExit'
       mesh.receiveShadow = true
       group.add(mesh)
 
       this._addTrimeshColliderShape(loopBody, geometry)
     }
 
-    // Thin, lowered access lane before the loop and matching exit lane after it.
-    createThinRamp(1)
-    createThinRamp(-1)
+    createAccessSurface(-1)
+    createAccessSurface(1)
 
     this.scene.add(group)
     this.house = group
