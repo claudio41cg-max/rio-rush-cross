@@ -1,0 +1,141 @@
+import * as THREE from 'three';
+import type { BuildContext } from './context';
+import type { TrackSample } from '../../core/types';
+import { createTrackSample } from '../Track';
+
+function makePalm(): THREE.Group {
+  const g = new THREE.Group();
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.95 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f8f3d, roughness: 0.8, side: THREE.DoubleSide });
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 7.4, 7), trunkMat);
+  trunk.position.y = 3.7;
+  trunk.castShadow = true;
+  g.add(trunk);
+  for (let i = 0; i < 8; i++) {
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.85, 5.6, 4), leafMat);
+    leaf.rotation.z = Math.PI / 2.25;
+    leaf.rotation.y = (i / 8) * Math.PI * 2;
+    leaf.position.y = 7.1;
+    leaf.position.x = Math.cos(leaf.rotation.y) * 1.7;
+    leaf.position.z = Math.sin(leaf.rotation.y) * 1.7;
+    leaf.castShadow = true;
+    g.add(leaf);
+  }
+  return g;
+}
+
+function makeUmbrella(color: number): THREE.Group {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.07, 2.2, 6),
+    new THREE.MeshStandardMaterial({ color: 0xe8e2d6, roughness: 0.8 }),
+  );
+  pole.position.y = 1.1;
+  const top = new THREE.Mesh(
+    new THREE.ConeGeometry(1.25, 0.55, 16),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.75, side: THREE.DoubleSide }),
+  );
+  top.position.y = 2.25;
+  g.add(pole, top);
+  return g;
+}
+
+function addWaterStrip(root: THREE.Group, sample: TrackSample, side: number, sunset: boolean): void {
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: sunset ? 0x3177a8 : 0x1aa7c7,
+    roughness: 0.28,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(72, 42), waterMat);
+  const yaw = Math.atan2(-sample.tangent.x, -sample.tangent.z);
+  water.rotation.set(-Math.PI / 2, 0, yaw);
+  water.position.set(
+    sample.position.x + sample.binormal.x * side * 34,
+    sample.position.y - 0.18,
+    sample.position.z + sample.binormal.z * side * 34,
+  );
+  water.receiveShadow = true;
+  root.add(water);
+}
+
+export function buildSummerScenery(ctx: BuildContext): THREE.Group {
+  const root = new THREE.Group();
+  root.name = 'summer-scenery';
+  const isSummer = ctx.def.id === 'summer_beach' || ctx.def.id === 'summer_sunset' || ctx.def.id === 'summer_tropical';
+  if (!isSummer) return root;
+
+  const sample = createTrackSample();
+  const sunset = ctx.def.id === 'summer_sunset';
+  const tropical = ctx.def.id === 'summer_tropical';
+  const waterSide = tropical ? -1 : 1;
+
+  // Ocean follows the coastline in overlapping strips so it is visible beside the road.
+  const waterSteps = tropical ? 10 : 8;
+  for (let i = 0; i < waterSteps; i++) {
+    ctx.cl.sample((i + 0.5) / waterSteps, sample);
+    addWaterStrip(root, sample, waterSide, sunset);
+  }
+
+  const palmBase = makePalm();
+  const palmCount = tropical ? 34 : sunset ? 28 : 30;
+  for (let i = 0; i < palmCount; i++) {
+    const t = (i + 0.35) / palmCount;
+    ctx.cl.sample(t, sample);
+    const side = i % 3 === 0 ? -waterSide : waterSide;
+    const distance = sample.wallHalfWidth + 7 + (i % 4) * 2.4;
+    const palm = palmBase.clone(true);
+    const scale = 0.78 + (i % 5) * 0.08;
+    palm.scale.setScalar(scale);
+    palm.position.set(
+      sample.position.x + sample.binormal.x * side * distance,
+      sample.position.y,
+      sample.position.z + sample.binormal.z * side * distance,
+    );
+    palm.rotation.y = (i * 1.618) % (Math.PI * 2);
+    root.add(palm);
+  }
+
+  // Beach umbrellas/lifeguard feel close to the sand side of the road.
+  const umbrellaColors = [0xff5b45, 0xffd34e, 0x42b7ff, 0xffffff];
+  const umbrellaCount = tropical ? 16 : 18;
+  for (let i = 0; i < umbrellaCount; i++) {
+    const t = (i + 0.7) / umbrellaCount;
+    ctx.cl.sample(t, sample);
+    const side = -waterSide;
+    const u = makeUmbrella(umbrellaColors[i % umbrellaColors.length]);
+    const distance = sample.wallHalfWidth + 8 + (i % 3) * 3;
+    u.position.set(
+      sample.position.x + sample.binormal.x * side * distance,
+      sample.position.y,
+      sample.position.z + sample.binormal.z * side * distance,
+    );
+    u.rotation.y = i * 0.7;
+    root.add(u);
+  }
+
+  // Tropical rocks make the third circuit feel more like a cove/island route.
+  if (tropical) {
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8f8d83, roughness: 1 });
+    for (let i = 0; i < 22; i++) {
+      const t = (i + 0.2) / 22;
+      ctx.cl.sample(t, sample);
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.8 + (i % 4) * 0.45, 0), rockMat);
+      const side = waterSide;
+      const distance = sample.wallHalfWidth + 15 + (i % 5) * 3.2;
+      rock.position.set(
+        sample.position.x + sample.binormal.x * side * distance,
+        sample.position.y - 0.3,
+        sample.position.z + sample.binormal.z * side * distance,
+      );
+      rock.scale.y = 0.8 + (i % 3) * 0.35;
+      rock.rotation.set(i * 0.15, i * 0.41, i * 0.09);
+      rock.castShadow = true;
+      rock.receiveShadow = true;
+      root.add(rock);
+    }
+  }
+
+  return root;
+}
