@@ -9,117 +9,40 @@ import rlUrl from '../assets/back-left.glb?url';
 import rrUrl from '../assets/back-right.glb?url';
 
 const loader = new GLTFLoader();
-
-type RcAssets = {
-  body: THREE.Object3D;
-  fl: THREE.Object3D;
-  fr: THREE.Object3D;
-  rl: THREE.Object3D;
-  rr: THREE.Object3D;
-};
-
+type RcAssets = { body: THREE.Object3D; fl: THREE.Object3D; fr: THREE.Object3D; rl: THREE.Object3D; rr: THREE.Object3D };
 let sharedAssetsPromise: Promise<RcAssets> | null = null;
 
 function prepare(root: THREE.Object3D): THREE.Object3D {
-  root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (mesh.isMesh) {
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-    }
-  });
+  root.traverse((obj) => { const mesh = obj as THREE.Mesh; if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; } });
   return root;
 }
-
-function loadOne(url: string): Promise<THREE.Object3D> {
-  return loader.loadAsync(url).then((gltf) => prepare(gltf.scene));
-}
-
+function loadOne(url: string): Promise<THREE.Object3D> { return loader.loadAsync(url).then((gltf) => prepare(gltf.scene)); }
 function getSharedAssets(): Promise<RcAssets> {
-  if (!sharedAssetsPromise) {
-    sharedAssetsPromise = Promise.all([
-      loadOne(bodyUrl),
-      loadOne(flUrl),
-      loadOne(frUrl),
-      loadOne(rlUrl),
-      loadOne(rrUrl),
-    ]).then(([body, fl, fr, rl, rr]) => ({ body, fl, fr, rl, rr }));
-  }
+  if (!sharedAssetsPromise) sharedAssetsPromise = Promise.all([loadOne(bodyUrl), loadOne(flUrl), loadOne(frUrl), loadOne(rlUrl), loadOne(rrUrl)]).then(([body, fl, fr, rl, rr]) => ({ body, fl, fr, rl, rr }));
   return sharedAssetsPromise;
 }
-
 function cloneForRacer(source: THREE.Object3D): THREE.Object3D {
   const clone = source.clone(true);
-  clone.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    if (Array.isArray(mesh.material)) mesh.material = mesh.material.map((m) => m.clone());
-    else if (mesh.material) mesh.material = mesh.material.clone();
-  });
+  clone.traverse((obj) => { const mesh = obj as THREE.Mesh; if (!mesh.isMesh) return; if (Array.isArray(mesh.material)) mesh.material = mesh.material.map((m) => m.clone()); else if (mesh.material) mesh.material = mesh.material.clone(); });
   return clone;
 }
-
 function tintBody(root: THREE.Object3D, color: number, accent: number): void {
   let index = 0;
-  root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of mats) {
-      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
-      const target = new THREE.Color(index++ % 4 === 0 ? accent : color);
-      material.color.lerp(target, 0.68);
-      material.metalness = Math.max(material.metalness, 0.22);
-      material.roughness = Math.min(material.roughness, 0.52);
-    }
-  });
+  root.traverse((obj) => { const mesh = obj as THREE.Mesh; if (!mesh.isMesh) return; const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]; for (const material of mats) { if (!(material instanceof THREE.MeshStandardMaterial)) continue; const target = new THREE.Color(index++ % 4 === 0 ? accent : color); material.color.lerp(target, 0.68); material.metalness = Math.max(material.metalness, 0.22); material.roughness = Math.min(material.roughness, 0.52); } });
 }
 
-/**
- * Keeps the original lightweight kart visible while the RC assets load once.
- * When ready, replaces the visual with the complete RC body and its four native wheel/suspension GLBs.
- */
-export function installRioRushRCModel(parts: KartModelPartsEx, character: CharacterDef): void {
+/** Loads the shared RC once. Player is rendered 18% larger for better phone visibility; rivals keep current size. */
+export function installRioRushRCModel(parts: KartModelPartsEx, character: CharacterDef, isPlayer = false): void {
   const oldChildren = [...parts.root.children];
-  const rc = new THREE.Group();
-  rc.name = `rc-rush-${character.id}`;
-  parts.root.add(rc);
-
-  getSharedAssets()
-    .then((assets) => {
-      const body = cloneForRacer(assets.body);
-      const fl = cloneForRacer(assets.fl);
-      const fr = cloneForRacer(assets.fr);
-      const rl = cloneForRacer(assets.rl);
-      const rr = cloneForRacer(assets.rr);
-
-      const box = new THREE.Box3().setFromObject(body);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const scale = 1.9 / Math.max(size.x, size.z, 0.001);
-
-      body.scale.setScalar(scale);
-      body.rotation.y = 0;
-      body.position.y = 0.12;
-      tintBody(body, character.color, character.accent);
-      rc.add(body);
-
-      // Each wheel GLB already carries the correct left/right/front/rear placement from the original RC.
-      for (const wheel of [fl, fr, rl, rr]) {
-        wheel.scale.setScalar(scale);
-        wheel.position.y += 0.12;
-        rc.add(wheel);
-      }
-
-      rc.scale.setScalar(1.08);
-      rc.position.y = 0.01;
-
-      // Only hide the temporary stock kart after the complete RC is ready.
-      for (const child of oldChildren) child.visible = false;
-    })
-    .catch((err) => {
-      console.error('[RC Rush] Falha ao carregar o modelo RC; mantendo o carro provisório.', err);
-      rc.removeFromParent();
-      for (const child of oldChildren) child.visible = true;
-    });
+  const rc = new THREE.Group(); rc.name = `rc-rush-${character.id}`; parts.root.add(rc);
+  getSharedAssets().then((assets) => {
+    const body = cloneForRacer(assets.body), fl = cloneForRacer(assets.fl), fr = cloneForRacer(assets.fr), rl = cloneForRacer(assets.rl), rr = cloneForRacer(assets.rr);
+    const box = new THREE.Box3().setFromObject(body), size = new THREE.Vector3(); box.getSize(size);
+    const scale = 1.9 / Math.max(size.x, size.z, 0.001);
+    body.scale.setScalar(scale); body.rotation.y = 0; body.position.y = 0.12; tintBody(body, character.color, character.accent); rc.add(body);
+    for (const wheel of [fl, fr, rl, rr]) { wheel.scale.setScalar(scale); wheel.position.y += 0.12; rc.add(wheel); }
+    rc.scale.setScalar(isPlayer ? 1.275 : 1.08);
+    rc.position.y = 0.01;
+    for (const child of oldChildren) child.visible = false;
+  }).catch((err) => { console.error('[RC Rush] Falha ao carregar o modelo RC; mantendo o carro provisório.', err); rc.removeFromParent(); for (const child of oldChildren) child.visible = true; });
 }
