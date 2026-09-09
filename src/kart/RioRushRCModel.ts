@@ -43,26 +43,29 @@ export function installRioRushRCModel(parts: KartModelPartsEx): void {
       const scale = 1.55 / longest;
 
       body.scale.setScalar(scale);
-      body.rotation.y = Math.PI;
+      // The RC asset already points in the game's forward direction.
+      // Keeping rotation at 0 prevents the car from visually driving backwards.
+      body.rotation.y = 0;
       body.position.set(0, 0.18, 0);
       rc.add(body);
 
-      const wheelScale = scale * 1.15;
+      const wheelScale = scale * 1.08;
       const wheels = [fl, fr, rl, rr];
       for (const wheel of wheels) {
         wheel.scale.setScalar(wheelScale);
         rc.add(wheel);
       }
 
-      fl.position.set(-0.52, 0.18, -0.52);
-      fr.position.set(0.52, 0.18, -0.52);
-      rl.position.set(-0.55, 0.20, 0.50);
-      rr.position.set(0.55, 0.20, 0.50);
+      // Bring wheels closer to the chassis so the stance matches the other racers.
+      fl.position.set(-0.42, 0.18, -0.47);
+      fr.position.set(0.42, 0.18, -0.47);
+      rl.position.set(-0.44, 0.20, 0.45);
+      rr.position.set(0.44, 0.20, 0.45);
 
-      fl.rotation.y = Math.PI;
-      fr.rotation.y = Math.PI;
-      rl.rotation.y = 0;
-      rr.rotation.y = 0;
+      fl.rotation.y = 0;
+      fr.rotation.y = 0;
+      rl.rotation.y = Math.PI;
+      rr.rotation.y = Math.PI;
 
       rc.scale.setScalar(0.92);
       rc.position.y = 0.02;
