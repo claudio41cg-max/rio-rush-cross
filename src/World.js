@@ -8,13 +8,14 @@ export const DEFAULT_ENVIRONMENT_PARAMS = {
 const GROUND_SIZE = 300
 const GROUND_THICKNESS = 0.5
 
-/**
- * Clean test environment.
- *
- * The vehicle, controls, camera and driving physics remain untouched.
- * This world intentionally contains only one large flat floor so we can
- * verify the original car behavior before building the motocross track.
- */
+// Scenario-only stunt loop. Vehicle.js, controls, camera and driving physics
+// are intentionally untouched.
+const LOOP_RADIUS = 11
+const LOOP_WIDTH = 7
+const LOOP_THICKNESS = 0.65
+const LOOP_SEGMENTS = 56
+const LOOP_Z = -34
+
 export class World {
   constructor(scene, physicsWorld, reflectionMap = null) {
     this.scene = scene
@@ -24,7 +25,7 @@ export class World {
     this.environmentParams = { ...DEFAULT_ENVIRONMENT_PARAMS }
 
     this._createLights()
-    this.ready = this._createFlatEnvironment()
+    this.ready = this._createFlatEnvironmentWithLoop()
   }
 
   _createLights() {
@@ -52,13 +53,13 @@ export class World {
     this.sun = sun
   }
 
-  async _createFlatEnvironment() {
+  async _createFlatEnvironmentWithLoop() {
     const group = new THREE.Group()
-    group.name = 'RioRushFlatTestEnvironment'
+    group.name = 'RioRushFlatLoopEnvironment'
 
     const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8a6847,
-      roughness: 1,
+      color: 0x8d929b,
+      roughness: 0.94,
       metalness: 0,
     })
 
@@ -71,16 +72,58 @@ export class World {
     ground.receiveShadow = true
     group.add(ground)
 
-    this.scene.add(group)
-    this.house = group
+    // Subtle grid lines are visual only; the physical floor remains perfectly flat.
+    const grid = new THREE.GridHelper(GROUND_SIZE, 60, 0xcbd0d8, 0xb0b5bd)
+    grid.position.y = 0.012
+    group.add(grid)
 
-    // Use a thin static box instead of a Cannon Plane. RaycastVehicle wheels
-    // raycast reliably against boxes, keeping the original vehicle behavior.
-    const body = new CANNON.Body({
+    const loopMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1656d8,
+      roughness: 0.42,
+      metalness: 0.08,
+      side: THREE.DoubleSide,
+    })
+
+    // A single vertical loop aligned with the original forward/back driving axis.
+    // Each segment is both a visible ramp piece and a matching static Cannon box.
+    const loopBody = new CANNON.Body({
       mass: 0,
       material: this.physicsWorld.defaultMaterial,
     })
-    body.addShape(
+
+    const segmentLength = (2 * Math.PI * LOOP_RADIUS) / LOOP_SEGMENTS * 1.035
+    for (let i = 0; i < LOOP_SEGMENTS; i++) {
+      const theta = (i / LOOP_SEGMENTS) * Math.PI * 2
+      const y = LOOP_RADIUS + LOOP_RADIUS * Math.cos(theta)
+      const z = LOOP_Z + LOOP_RADIUS * Math.sin(theta)
+
+      const segment = new THREE.Mesh(
+        new THREE.BoxGeometry(LOOP_WIDTH, LOOP_THICKNESS, segmentLength),
+        loopMaterial
+      )
+      segment.position.set(0, y, z)
+      segment.rotation.x = theta
+      segment.castShadow = true
+      segment.receiveShadow = true
+      group.add(segment)
+
+      const shape = new CANNON.Box(
+        new CANNON.Vec3(LOOP_WIDTH * 0.5, LOOP_THICKNESS * 0.5, segmentLength * 0.5)
+      )
+      const localOffset = new CANNON.Vec3(0, y, z)
+      const localRotation = new CANNON.Quaternion()
+      localRotation.setFromEuler(theta, 0, 0)
+      loopBody.addShape(shape, localOffset, localRotation)
+    }
+
+    this.scene.add(group)
+    this.house = group
+
+    const groundBody = new CANNON.Body({
+      mass: 0,
+      material: this.physicsWorld.defaultMaterial,
+    })
+    groundBody.addShape(
       new CANNON.Box(
         new CANNON.Vec3(
           GROUND_SIZE * 0.5,
@@ -89,10 +132,14 @@ export class World {
         )
       )
     )
-    body.position.set(0, -GROUND_THICKNESS * 0.5, 0)
-    body.updateAABB()
-    this.physicsWorld.addBody(body)
-    this.colliderBody = body
+    groundBody.position.set(0, -GROUND_THICKNESS * 0.5, 0)
+    groundBody.updateAABB()
+    this.physicsWorld.addBody(groundBody)
+    this.colliderBody = groundBody
+
+    loopBody.updateAABB()
+    this.physicsWorld.addBody(loopBody)
+    this.loopBody = loopBody
 
     this.applyEnvironmentParams()
   }
@@ -104,6 +151,10 @@ export class World {
     if (this.colliderBody) {
       this.colliderBody.position.y = offsetY - GROUND_THICKNESS * 0.5
       this.colliderBody.updateAABB()
+    }
+    if (this.loopBody) {
+      this.loopBody.position.y = offsetY
+      this.loopBody.updateAABB()
     }
   }
 
