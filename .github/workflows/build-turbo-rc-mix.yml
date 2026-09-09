@@ -1,0 +1,196 @@
+name: Build Turbo Kart + Rio Rush RC Mix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-turbo-rc-mix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Rio Rush
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Save Rio Rush RC assets
+        run: |
+          mkdir -p /tmp/rc-assets
+          cp src/assets/base.glb /tmp/rc-assets/base.glb
+          cp src/assets/front-left.glb /tmp/rc-assets/front-left.glb
+          cp src/assets/front-right.glb /tmp/rc-assets/front-right.glb
+          cp src/assets/back-left.glb /tmp/rc-assets/back-left.glb
+          cp src/assets/back-right.glb /tmp/rc-assets/back-right.glb
+
+      - name: Import complete Turbo Kart Rush source
+        run: |
+          git clone --depth 1 https://github.com/bridge-mind/turbo-kart-rush.git /tmp/turbo
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.github' -exec rm -rf {} +
+          cp -a /tmp/turbo/. .
+          rm -rf .git
+          mkdir -p src/assets
+          cp /tmp/rc-assets/*.glb src/assets/
+
+      - name: Add Rio Rush RC player model adapter
+        run: |
+          cat > src/kart/RioRushRCModel.ts <<'EOF'
+          import * as THREE from 'three';
+          import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+          import type { KartModelPartsEx } from './KartModel';
+          import bodyUrl from '../assets/base.glb?url';
+          import flUrl from '../assets/front-left.glb?url';
+          import frUrl from '../assets/front-right.glb?url';
+          import rlUrl from '../assets/back-left.glb?url';
+          import rrUrl from '../assets/back-right.glb?url';
+
+          const loader = new GLTFLoader();
+
+          function prepareObject(root: THREE.Object3D): void {
+            root.traverse((obj) => {
+              const mesh = obj as THREE.Mesh;
+              if (mesh.isMesh) {
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+              }
+            });
+          }
+
+          async function load(url: string): Promise<THREE.Object3D> {
+            const gltf = await loader.loadAsync(url);
+            const obj = gltf.scene;
+            prepareObject(obj);
+            return obj;
+          }
+
+          export function installRioRushRCModel(parts: KartModelPartsEx): void {
+            const oldChildren = [...parts.root.children];
+            for (const child of oldChildren) child.visible = false;
+
+            const rc = new THREE.Group();
+            rc.name = 'rio-rush-rc-player';
+            parts.root.add(rc);
+
+            Promise.all([load(bodyUrl), load(flUrl), load(frUrl), load(rlUrl), load(rrUrl)])
+              .then(([body, fl, fr, rl, rr]) => {
+                const bodyBox = new THREE.Box3().setFromObject(body);
+                const bodySize = new THREE.Vector3();
+                bodyBox.getSize(bodySize);
+                const longest = Math.max(bodySize.x, bodySize.z, 0.001);
+                const scale = 1.55 / longest;
+
+                body.scale.setScalar(scale);
+                body.rotation.y = Math.PI;
+                body.position.set(0, 0.18, 0);
+                rc.add(body);
+
+                const wheelScale = scale * 1.15;
+                const wheels = [fl, fr, rl, rr];
+                for (const wheel of wheels) {
+                  wheel.scale.setScalar(wheelScale);
+                  rc.add(wheel);
+                }
+
+                fl.position.set(-0.52, 0.18, -0.52);
+                fr.position.set(0.52, 0.18, -0.52);
+                rl.position.set(-0.55, 0.20, 0.50);
+                rr.position.set(0.55, 0.20, 0.50);
+
+                fl.rotation.y = Math.PI;
+                fr.rotation.y = Math.PI;
+                rl.rotation.y = 0;
+                rr.rotation.y = 0;
+
+                rc.scale.setScalar(0.92);
+                rc.position.y = 0.02;
+              })
+              .catch((err) => {
+                console.error('Rio Rush RC model failed to load; restoring stock kart.', err);
+                for (const child of oldChildren) child.visible = true;
+                rc.removeFromParent();
+              });
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/kart/Kart.ts')
+          s = p.read_text()
+          marker = "import { buildKartModel, type KartModelPartsEx } from './KartModel';"
+          if "RioRushRCModel" not in s:
+              s = s.replace(marker, marker + "\nimport { installRioRushRCModel } from './RioRushRCModel';")
+          old = "    this.parts = buildKartModel(character);\n    this.visual = this.parts.root;"
+          new = "    this.parts = buildKartModel(character);\n    if (isPlayer) installRioRushRCModel(this.parts);\n    this.visual = this.parts.root;"
+          if old not in s:
+              raise SystemExit('Could not locate Kart model construction hook')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+      - name: Add mobile touch controls for the player
+        run: |
+          cat >> src/style.css <<'EOF'
+
+          /* Rio Rush mobile controls */
+          #rio-mobile-controls{position:fixed;inset:0;pointer-events:none;z-index:9999;display:none}
+          @media (pointer:coarse){#rio-mobile-controls{display:block}}
+          .rio-pad{position:absolute;bottom:18px;width:74px;height:74px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(20,25,35,.48);color:#fff;font-size:30px;font-weight:800;pointer-events:auto;touch-action:none;user-select:none}
+          #rio-left{left:18px}#rio-right{left:102px}#rio-brake{right:102px}#rio-gas{right:18px}
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/main.ts')
+          s=p.read_text()
+          inject = '''
+
+          const mobile = document.createElement('div');
+          mobile.id = 'rio-mobile-controls';
+          mobile.innerHTML = `
+            <button id="rio-left" class="rio-pad">◀</button>
+            <button id="rio-right" class="rio-pad">▶</button>
+            <button id="rio-brake" class="rio-pad">▼</button>
+            <button id="rio-gas" class="rio-pad">▲</button>`;
+          document.body.appendChild(mobile);
+
+          const keyMap: Record<string,string> = { 'rio-left':'ArrowLeft', 'rio-right':'ArrowRight', 'rio-brake':'ArrowDown', 'rio-gas':'ArrowUp' };
+          for (const [id,key] of Object.entries(keyMap)) {
+            const el = document.getElementById(id)!;
+            const fire = (type:string) => window.dispatchEvent(new KeyboardEvent(type,{key,code:key,bubbles:true}));
+            el.addEventListener('pointerdown', e => { e.preventDefault(); fire('keydown'); });
+            for (const ev of ['pointerup','pointercancel','pointerleave']) el.addEventListener(ev, e => { e.preventDefault(); fire('keyup'); });
+          }
+          '''
+          if 'rio-mobile-controls' not in s:
+              s += inject
+          p.write_text(s)
+          PY
+
+      - name: Keep attribution for both MIT projects
+        run: |
+          cat > RIO_RUSH_MIX.md <<'EOF'
+          # Turbo Kart Rush + Rio Rush RC Mix
+
+          This test uses the full Turbo Kart Rush game structure (MIT, BridgeMind, 2026)
+          and replaces only the player kart visual with the Rio Rush RC vehicle assets.
+          AI racers, tracks, race manager, items, HUD, audio and effects remain from Turbo Kart Rush.
+
+          The previous Rio Rush state is preserved in branch `backup-before-turbo-kart-mix`.
+          EOF
+
+      - name: Typecheck and build
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+      - name: Commit the full mix to main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Use full Turbo Kart Rush as base with Rio Rush RC player car'
+          git push origin HEAD:main
