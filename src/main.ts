@@ -86,12 +86,15 @@ mobile.innerHTML = `
   <button id="rio-right" class="rio-pad rio-drive"><span class="rio-icon">▶</span><span class="rio-label">DIREITA</span></button>
   <button id="rio-item" class="rio-pad rio-item"><span class="rio-icon">★</span><span class="rio-label">ITEM</span></button>
   <button id="rio-brake" class="rio-pad rio-drive"><span class="rio-icon">▼</span><span class="rio-label">FREIO</span></button>
-  <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">ACELERAR</span></button>`;
+  <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">ACELERAR</span></button>
+  <button id="rio-tilt" class="rio-tilt" type="button">INCLINAR: OFF</button>`;
 document.body.appendChild(mobile);
 
 function syncMobileControls(): void {
   const state = activeGame?.currentState;
-  mobile.classList.toggle('race-active', state === 'countdown' || state === 'racing');
+  const raceActive = state === 'countdown' || state === 'racing';
+  mobile.classList.toggle('race-active', raceActive);
+  if (!raceActive) releaseTiltDirection();
   requestAnimationFrame(syncMobileControls);
 }
 requestAnimationFrame(syncMobileControls);
@@ -109,3 +112,86 @@ for (const [id,key] of Object.entries(keyMap)) {
   control.addEventListener('pointerdown', e => { e.preventDefault(); control.setPointerCapture?.(e.pointerId); fire('keydown'); });
   for (const ev of ['pointerup','pointercancel','pointerleave']) control.addEventListener(ev, e => { e.preventDefault(); fire('keyup'); });
 }
+
+// Direção por inclinação: opcional e independente dos botões de toque.
+const tiltButton = document.getElementById('rio-tilt') as HTMLButtonElement;
+let tiltEnabled = false;
+let tiltBaseline: number | null = null;
+let tiltDirection = 0;
+
+function keyboardSteer(type: 'keydown' | 'keyup', direction: number): void {
+  if (direction === 0) return;
+  const key = direction < 0 ? 'ArrowLeft' : 'ArrowRight';
+  window.dispatchEvent(new KeyboardEvent(type, { key, code: key, bubbles: true }));
+}
+
+function releaseTiltDirection(): void {
+  if (tiltDirection !== 0) keyboardSteer('keyup', tiltDirection);
+  tiltDirection = 0;
+}
+
+function setTiltDirection(next: number): void {
+  if (next === tiltDirection) return;
+  releaseTiltDirection();
+  tiltDirection = next;
+  if (tiltDirection !== 0) keyboardSteer('keydown', tiltDirection);
+}
+
+async function enableTilt(): Promise<void> {
+  const ctor = DeviceOrientationEvent as unknown as {
+    requestPermission?: () => Promise<'granted' | 'denied'>;
+  };
+  if (typeof ctor.requestPermission === 'function') {
+    const result = await ctor.requestPermission();
+    if (result !== 'granted') throw new Error('Permissão de movimento negada');
+  }
+  tiltEnabled = true;
+  tiltBaseline = null;
+  tiltButton.classList.add('active');
+  tiltButton.textContent = 'INCLINAR: ON';
+}
+
+function disableTilt(): void {
+  tiltEnabled = false;
+  tiltBaseline = null;
+  releaseTiltDirection();
+  tiltButton.classList.remove('active');
+  tiltButton.textContent = 'INCLINAR: OFF';
+}
+
+tiltButton.addEventListener('click', async (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (tiltEnabled) {
+    disableTilt();
+    return;
+  }
+  try {
+    await enableTilt();
+  } catch (err) {
+    console.warn('[RC Rush] Inclinação indisponível', err);
+    showToast('Não foi possível ativar a direção por inclinação neste aparelho.', 'error');
+    disableTilt();
+  }
+});
+
+window.addEventListener('deviceorientation', (event) => {
+  if (!tiltEnabled || !mobile.classList.contains('race-active')) return;
+  const angle = screen.orientation?.angle ?? 0;
+  const beta = event.beta ?? 0;
+  const gamma = event.gamma ?? 0;
+  let raw = gamma;
+  if (angle === 90) raw = beta;
+  else if (angle === 270) raw = -beta;
+
+  if (tiltBaseline === null) {
+    tiltBaseline = raw;
+    return;
+  }
+
+  const delta = raw - tiltBaseline;
+  const deadZone = 6;
+  if (delta > deadZone) setTiltDirection(1);
+  else if (delta < -deadZone) setTiltDirection(-1);
+  else setTiltDirection(0);
+}, { passive: true });
