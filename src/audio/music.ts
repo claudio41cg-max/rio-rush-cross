@@ -18,5 +18,10 @@ class SoftLoop{
  stop(fade:number){if(this.stopped)return;this.stopped=true;if(this.timer)clearInterval(this.timer);const now=this.ctx.currentTime;this.output.gain.cancelScheduledValues(now);this.output.gain.setValueAtTime(Math.max(.0001,this.output.gain.value),now);this.output.gain.exponentialRampToValueAtTime(.0001,now+Math.max(.05,fade));setTimeout(()=>this.output.disconnect(),fade*1000+500);}
  dispose(){this.stop(.02);}
 }
+
+/** Compatibility sequencer used by the star-power jingle in AudioEngine. */
+export class Sequencer extends SoftLoop {}
+export function buildStarJingle():Song{return{bpm:152,chords:[[60,64,67],[62,65,69],[64,67,71],[62,65,69]],bass:[48,50,52,50],melody:[84,88,91,88,86,89,93,89],gain:.26};}
+
 export class MusicPlayer{private current:SoftLoop|null=null;private currentTrack:MusicTrack='none';constructor(private ctx:AudioContext,private dest:AudioNode){}get track():MusicTrack{return this.currentTrack;}play(track:MusicTrack){if(track===this.currentTrack)return;if(track==='none'){this.stop();return;}const key=(track==='menu'||track==='race'||track==='finalLap'||track==='results'?track:'menu') as keyof typeof SONGS;const next=new SoftLoop(this.ctx,this.dest,SONGS[key]);if(this.current)this.current.stop(.8);next.start(this.ctx.currentTime+.05,.8);this.current=next;this.currentTrack=track;}stop(){if(this.current)this.current.stop(.8);this.current=null;this.currentTrack='none';}dispose(){if(this.current)this.current.dispose();this.current=null;this.currentTrack='none';}}
 export function warmMusic(_ctx:AudioContext):void{}
