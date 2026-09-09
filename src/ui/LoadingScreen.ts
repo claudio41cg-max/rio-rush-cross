@@ -7,18 +7,18 @@ import { clamp01 } from '../core/math';
 import { cssHex, el, TextField } from './dom';
 
 const TIPS: readonly string[] = [
-  'Hold DRIFT (Space / Shift) through a corner and release for a mini-turbo. Longer drift = bigger boost.',
-  'Tap the throttle just as the countdown hits 1 for a rocket start. Hold it too early and you will spin out.',
-  'Hold BRAKE while using a shell to throw it backwards.',
-  'Press Q to look behind you. Check what is coming before dropping a banana.',
-  'Boost pads (glowing chevrons) give a free +45% speed burst. Line them up.',
-  'Item odds depend on your place. Trailing racers get stars, lightning and blue shells.',
-  'A star makes you invincible and destroys any hazard you touch.',
-  'Staying on the road matters: off-road cuts your top speed almost in half.',
-  'Use a mushroom on the long straight, or to recover after a hit.',
-  'Heavy karts bump light karts around. Pick your weight class wisely.',
-  'Hop off jump crests for a small landing boost.',
-  'Press M to mute the audio at any time.',
+  'Segure DERRAPAGEM (Espaço / Shift) na curva e solte para ganhar mini-turbo. Quanto maior a derrapagem, maior o impulso.',
+  'Acelere quando a contagem chegar a 1 para uma largada turbo. Se acelerar cedo demais, o carro vai rodar.',
+  'Segure FREIO ao usar um casco para lançá-lo para trás.',
+  'Pressione Q para olhar para trás. Veja quem está chegando antes de soltar uma banana.',
+  'As faixas de turbo dão um forte impulso de velocidade. Passe por cima delas.',
+  'Os itens dependem da sua posição. Quem está atrás recebe itens mais fortes.',
+  'A estrela deixa você invencível e destrói obstáculos ao tocar neles.',
+  'Fique na pista: fora do asfalto a velocidade máxima cai bastante.',
+  'Use um cogumelo na reta longa ou para recuperar velocidade depois de uma batida.',
+  'Carros mais pesados empurram os mais leves. Escolha bem sua categoria.',
+  'Salte nas elevações para ganhar um pequeno impulso ao aterrissar.',
+  'Pressione M para silenciar o áudio a qualquer momento.',
 ];
 
 const TIP_INTERVAL = 2.4;
@@ -41,21 +41,21 @@ export class LoadingScreen {
     const panel = el('div', 'loading-panel', undefined, this.rootNode);
     this.band = el('div', 'loading-band', undefined, panel);
     const inner = el('div', 'loading-inner', undefined, panel);
-    el('div', 'loading-kicker', 'NOW LOADING', inner);
+    el('div', 'loading-kicker', 'CARREGANDO', inner);
     this.title = new TextField(el('h2', 'loading-title', '', inner));
     this.subtitle = new TextField(el('div', 'loading-subtitle', '', inner));
     const track = el('div', 'loading-track', undefined, inner);
     this.bar = el('div', 'loading-bar', undefined, track);
     el('div', 'loading-bar-shimmer', undefined, this.bar);
     this.tipNode = el('div', 'loading-tip', undefined, inner);
-    el('span', 'loading-tip-label', 'TIP', this.tipNode);
+    el('span', 'loading-tip-label', 'DICA', this.tipNode);
     this.tipText = new TextField(el('span', 'loading-tip-text', '', this.tipNode));
   }
 
   show(def: TrackDefinition): void {
     this.title.set(def.name.toUpperCase());
     const stars = '★'.repeat(def.difficulty) + '☆'.repeat(3 - def.difficulty);
-    this.subtitle.set(`${def.laps} LAPS  ·  ${stars}  ·  ${def.theme.toUpperCase()}`);
+    this.subtitle.set(`${def.laps} VOLTAS  ·  ${stars}  ·  ${def.theme.toUpperCase()}`);
     const env = def.environment;
     this.band.style.background = `linear-gradient(90deg, ${cssHex(env.skyTop)}, ${cssHex(env.skyHorizon)}, ${cssHex(
       def.palette.road,

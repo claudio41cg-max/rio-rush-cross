@@ -14,16 +14,16 @@ const ITEM_LABEL: Record<ItemType, string> = {
   none: '',
   banana: 'BANANA',
   triple_banana: 'BANANA ×3',
-  green_shell: 'GREEN SHELL',
-  triple_green_shell: 'GREEN ×3',
-  red_shell: 'RED SHELL',
-  triple_red_shell: 'RED ×3',
-  blue_shell: 'BLUE SHELL',
-  mushroom: 'MUSHROOM',
-  triple_mushroom: 'MUSHROOM ×3',
-  golden_mushroom: 'GOLDEN',
-  star: 'STAR',
-  lightning: 'LIGHTNING',
+  green_shell: 'CASCO VERDE',
+  triple_green_shell: 'VERDE ×3',
+  red_shell: 'CASCO VERMELHO',
+  triple_red_shell: 'VERMELHO ×3',
+  blue_shell: 'CASCO AZUL',
+  mushroom: 'COGUMELO',
+  triple_mushroom: 'COGUMELO ×3',
+  golden_mushroom: 'DOURADO',
+  star: 'ESTRELA',
+  lightning: 'RAIO',
   bob_omb: 'BOB-OMB',
 };
 
@@ -111,7 +111,7 @@ export class HUD {
     // Top-right: lap + timer
     const topRight = el('div', 'hud-topright', undefined, this.rootNode);
     const lapBox = el('div', 'hud-lap glass', undefined, topRight);
-    el('span', 'hud-lap-label', 'LAP', lapBox);
+    el('span', 'hud-lap-label', 'VOLTA', lapBox);
     this.lapText = new TextField(el('span', 'hud-lap-value', '', lapBox));
     this.timerText = new TextField(el('div', 'hud-timer glass', '0:00.000', topRight));
 
@@ -153,7 +153,7 @@ export class HUD {
     this.center = el('div', 'hud-center', undefined, this.rootNode);
     this.wrongWay = el('div', 'hud-wrongway', undefined, this.rootNode);
     el('span', 'wrongway-arrow', '⟲', this.wrongWay);
-    el('span', 'wrongway-text', 'WRONG WAY', this.wrongWay);
+    el('span', 'wrongway-text', 'SENTIDO ERRADO', this.wrongWay);
     this.vignette = el('div', 'hud-vignette', undefined, this.rootNode);
     this.boostGlow = el('div', 'hud-boostglow', undefined, this.rootNode);
 
@@ -276,12 +276,12 @@ export class HUD {
         this.flashCenter(String(e.count), 'hud-count', 0.95);
       }),
       on('race:start', () => {
-        this.flashCenter('GO!', 'hud-count hud-go', 1.1);
+        this.flashCenter('VAI!', 'hud-count hud-go', 1.1);
       }),
       on('race:lap', (e) => {
         if (!e.isPlayer) return;
-        if (e.isFinalLap) this.flashCenter('FINAL LAP!', 'hud-banner final', 2.4);
-        else if (e.lap > 1) this.flashCenter(`LAP ${e.lap}`, 'hud-banner lap', 1.4);
+        if (e.isFinalLap) this.flashCenter('ÚLTIMA VOLTA!', 'hud-banner final', 2.4);
+        else if (e.lap > 1) this.flashCenter(`VOLTA ${e.lap}`, 'hud-banner lap', 1.4);
       }),
       on('race:positionChange', (e) => {
         if (!e.isPlayer) return;
@@ -295,8 +295,8 @@ export class HUD {
       }),
       on('race:finish', (e) => {
         if (!e.isPlayer) return;
-        const node = this.flashCenter('FINISH', 'hud-finish', 4.5);
-        el('div', 'hud-finish-place', ordinal(e.place).toUpperCase() + ' PLACE', node);
+        const node = this.flashCenter('CHEGADA', 'hud-finish', 4.5);
+        el('div', 'hud-finish-place', `${e.place}º LUGAR`, node);
       }),
       on('kart:respawn', (e) => {
         if (e.kartId !== this.playerId) return;

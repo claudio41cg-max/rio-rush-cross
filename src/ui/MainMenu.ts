@@ -10,17 +10,17 @@ import { button, cssHex, cssRgba, el, TextField } from './dom';
 export type MenuPanel = 'title' | 'characterSelect' | 'trackSelect';
 
 const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'];
-const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'EASY', normal: 'NORMAL', hard: 'HARD' };
+const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'FÁCIL', normal: 'NORMAL', hard: 'DIFÍCIL' };
 const DIFFICULTY_BLURB: Record<Difficulty, string> = {
-  easy: 'Relaxed rivals, generous rubber-banding.',
-  normal: 'The classic Grand Prix challenge.',
-  hard: 'Ruthless AI, near-perfect lines, no mercy.',
+  easy: 'Rivais mais tranquilos e ajuda maior para acompanhar a corrida.',
+  normal: 'O desafio clássico de uma grande corrida.',
+  hard: 'IA agressiva, trajetórias quase perfeitas e sem piedade.',
 };
 const STAT_KEYS: readonly { key: keyof CharacterDef['stats']; label: string }[] = [
-  { key: 'speed', label: 'SPD' },
-  { key: 'acceleration', label: 'ACC' },
-  { key: 'handling', label: 'HND' },
-  { key: 'weight', label: 'WGT' },
+  { key: 'speed', label: 'VEL' },
+  { key: 'acceleration', label: 'ACE' },
+  { key: 'handling', label: 'DIR' },
+  { key: 'weight', label: 'PESO' },
   { key: 'miniTurbo', label: 'MT' },
 ];
 const CHAR_COLUMNS = 4;
@@ -67,26 +67,26 @@ export class MainMenu {
       line.dataset.text = w;
       line.textContent = w;
     });
-    el('div', 'logo-sub', 'ARCADE GRAND PRIX', title);
+    el('div', 'logo-sub', 'CORRIDA ARCADE', title);
     const prompt = el('div', 'press-start', undefined, title);
-    el('span', 'press-start-text', 'PRESS ENTER / CLICK TO START', prompt);
+    el('span', 'press-start-text', 'TOQUE NA TELA PARA COMEÇAR', prompt);
     const legend = el('div', 'controls-legend glass', undefined, title);
     const keys: [string, string][] = [
-      ['W / ↑', 'Throttle'],
-      ['S / ↓', 'Brake / Reverse'],
-      ['A D / ← →', 'Steer'],
-      ['SPACE / SHIFT', 'Hop · Drift'],
-      ['E / CTRL', 'Use item (hold BRAKE to throw back)'],
-      ['Q', 'Look back'],
-      ['ESC / P', 'Pause'],
-      ['M', 'Mute'],
+      ['W / ↑', 'Acelerar'],
+      ['S / ↓', 'Frear / Ré'],
+      ['A D / ← →', 'Virar'],
+      ['ESPAÇO / SHIFT', 'Pulo · Derrapagem'],
+      ['E / CTRL', 'Usar item (segure FREIO para jogar para trás)'],
+      ['Q', 'Olhar para trás'],
+      ['ESC / P', 'Pausar'],
+      ['M', 'Silenciar'],
     ];
     for (const [k, v] of keys) {
       const row = el('div', 'legend-row', undefined, legend);
       el('kbd', '', k, row);
       el('span', '', v, row);
     }
-    el('div', 'version', 'v1.0 · Three.js · 100% procedural · gamepad supported', title);
+    el('div', 'version', 'v1.0 · Three.js · suporte a controle', title);
     title.addEventListener('click', () => {
       if (this.panel === 'title') this.goTo('characterSelect', true);
     });
@@ -94,8 +94,8 @@ export class MainMenu {
     // ------------------------------------------------------- character select
     const chars = el('section', 'panel-select panel-chars', undefined, this.rootNode);
     const charHead = el('header', 'select-header', undefined, chars);
-    el('div', 'panel-kicker', 'STEP 1 / 2', charHead);
-    el('h2', 'panel-title', 'CHOOSE YOUR RACER', charHead);
+    el('div', 'panel-kicker', 'ETAPA 1 / 2', charHead);
+    el('h2', 'panel-title', 'ESCOLHA SEU PILOTO', charHead);
     const charGrid = el('div', 'card-grid char-grid', undefined, chars);
     characters.forEach((c, i) => {
       const card = this.buildCharacterCard(c);
@@ -113,14 +113,14 @@ export class MainMenu {
     this.charName = new TextField(el('div', 'select-info-name', '', charInfo));
     this.charTagline = new TextField(el('div', 'select-info-tagline', '', charInfo));
     const charActions = el('div', 'actions', undefined, charFoot);
-    charActions.appendChild(button('← BACK', 'ghost', () => this.goTo('title', true)));
-    charActions.appendChild(button('CONTINUE →', 'primary', () => this.goTo('trackSelect', true)));
+    charActions.appendChild(button('← VOLTAR', 'ghost', () => this.goTo('title', true)));
+    charActions.appendChild(button('CONTINUAR →', 'primary', () => this.goTo('trackSelect', true)));
 
     // ----------------------------------------------------------- track select
     const tr = el('section', 'panel-select panel-tracks', undefined, this.rootNode);
     const trHead = el('header', 'select-header', undefined, tr);
-    el('div', 'panel-kicker', 'STEP 2 / 2', trHead);
-    el('h2', 'panel-title', 'PICK A CIRCUIT', trHead);
+    el('div', 'panel-kicker', 'ETAPA 2 / 2', trHead);
+    el('h2', 'panel-title', 'ESCOLHA UM CIRCUITO', trHead);
     const trackGrid = el('div', 'card-grid track-grid', undefined, tr);
     tracks.forEach((t, i) => {
       const card = this.buildTrackCard(t);
@@ -140,7 +140,7 @@ export class MainMenu {
     });
     const trFoot = el('footer', 'select-footer glass', undefined, tr);
     const diffWrap = el('div', 'difficulty', undefined, trFoot);
-    el('div', 'difficulty-label', 'DIFFICULTY', diffWrap);
+    el('div', 'difficulty-label', 'DIFICULDADE', diffWrap);
     const seg = el('div', 'segmented', undefined, diffWrap);
     DIFFICULTIES.forEach((d, i) => {
       const b = el('button', 'seg', DIFFICULTY_LABEL[d], seg);
@@ -158,8 +158,8 @@ export class MainMenu {
     });
     this.diffBlurb = new TextField(el('div', 'difficulty-blurb', '', diffWrap));
     const trActions = el('div', 'actions', undefined, trFoot);
-    trActions.appendChild(button('← BACK', 'ghost', () => this.goTo('characterSelect', true)));
-    this.startButton = button('START RACE', 'primary start', () => this.start());
+    trActions.appendChild(button('← VOLTAR', 'ghost', () => this.goTo('characterSelect', true)));
+    this.startButton = button('INICIAR CORRIDA', 'primary start', () => this.start());
     this.startButton.addEventListener('pointerenter', () => {
       this.trackRow = 2;
       this.refreshTrackFocus();
@@ -347,7 +347,7 @@ export class MainMenu {
     el('div', 'card-name', c.name.toUpperCase(), card);
     el('div', 'card-tag', c.tagline, card);
     const pill = el('div', `pill weight-${c.weightClass}`, c.weightClass.toUpperCase(), card);
-    pill.title = 'Weight class';
+    pill.title = 'Categoria de peso';
     const stats = el('div', 'stats', undefined, card);
     for (const s of STAT_KEYS) {
       const row = el('div', 'stat', undefined, stats);

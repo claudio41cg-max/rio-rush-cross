@@ -28,15 +28,15 @@ export class ResultsScreen {
     this.rootNode = el('div', 'screen results hidden', undefined, root);
     this.confetti = el('div', 'confetti', undefined, this.rootNode);
     this.panel = el('div', 'glass panel results-panel', undefined, this.rootNode);
-    el('div', 'panel-kicker', 'RACE COMPLETE', this.panel);
+    el('div', 'panel-kicker', 'CORRIDA CONCLUÍDA', this.panel);
     this.heading = new TextField(el('h2', 'panel-title results-title', '', this.panel));
     this.subheading = new TextField(el('div', 'results-sub', '', this.panel));
     this.table = el('div', 'standings', undefined, this.panel);
     const actions = el('div', 'actions', undefined, this.panel);
     this.focus = new FocusRing((i) => this.activate(i));
-    const again = button('RACE AGAIN', 'primary', () => this.activate(0));
-    const change = button('CHANGE TRACK', '', () => this.activate(1));
-    const menu = button('MAIN MENU', 'ghost', () => this.activate(2));
+    const again = button('CORRER NOVAMENTE', 'primary', () => this.activate(0));
+    const change = button('TROCAR PISTA', '', () => this.activate(1));
+    const menu = button('MENU PRINCIPAL', 'ghost', () => this.activate(2));
     actions.append(again, change, menu);
     this.focus.add(again);
     this.focus.add(change);
@@ -50,15 +50,15 @@ export class ResultsScreen {
     const place = player ? player.place : standings.length;
     const winnerTime = standings.length > 0 ? standings[0].finishTime : 0;
 
-    this.heading.set(place === 1 ? 'VICTORY!' : `${ordinal(place).toUpperCase()} PLACE`);
+    this.heading.set(place === 1 ? 'VITÓRIA!' : `${place}º LUGAR`);
     this.subheading.set(
       place === 1
-        ? 'Untouchable. The crowd goes wild.'
+        ? 'Imbatível! A torcida vai à loucura.'
         : place <= 3
-          ? 'Podium finish. Champagne is on ice.'
+          ? 'Pódio garantido! Grande corrida.'
           : place <= 5
-            ? 'Solid run. The podium is within reach.'
-            : 'Rough race. Time for revenge.',
+            ? 'Boa corrida. O pódio está cada vez mais perto.'
+            : 'Corrida difícil. Hora da revanche.',
     );
     this.panel.classList.toggle('gold', place === 1);
 
@@ -70,11 +70,11 @@ export class ResultsScreen {
       el('span', 'standing-place', ordinal(s.place), row);
       const chip = el('span', 'standing-chip', undefined, row);
       chip.style.background = cssHex(s.color);
-      el('span', 'standing-name', s.name + (s.isPlayer ? '  (YOU)' : ''), row);
+      el('span', 'standing-name', s.name + (s.isPlayer ? '  (VOCÊ)' : ''), row);
       const t = s.finishTime;
       const label =
         !isFinite(t) || t <= 0
-          ? 'DNF'
+          ? 'NÃO TERMINOU'
           : i === 0
             ? formatRaceTime(t)
             : `+${(t - winnerTime).toFixed(3)}`;

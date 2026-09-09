@@ -17,20 +17,20 @@ export class PauseMenu {
   constructor(root: HTMLElement) {
     this.rootNode = el('div', 'screen pause hidden', undefined, root);
     const panel = el('div', 'glass panel pause-panel', undefined, this.rootNode);
-    el('div', 'panel-kicker', 'RACE PAUSED', panel);
-    el('h2', 'panel-title', 'PAUSED', panel);
+    el('div', 'panel-kicker', 'CORRIDA PAUSADA', panel);
+    el('h2', 'panel-title', 'PAUSADO', panel);
     const actions = el('div', 'actions column', undefined, panel);
 
     this.focus = new FocusRing((i) => this.activate(i));
-    const resume = button('RESUME', 'primary', () => this.activate(0));
-    const restart = button('RESTART RACE', '', () => this.activate(1));
-    const quit = button('QUIT TO MENU', 'danger', () => this.activate(2));
+    const resume = button('CONTINUAR', 'primary', () => this.activate(0));
+    const restart = button('REINICIAR CORRIDA', '', () => this.activate(1));
+    const quit = button('VOLTAR AO MENU', 'danger', () => this.activate(2));
     actions.append(resume, restart, quit);
     this.focus.add(resume);
     this.focus.add(restart);
     this.focus.add(quit);
 
-    el('div', 'panel-hint', 'ESC / P  resume   ·   ↑↓  navigate   ·   ENTER  select', panel);
+    el('div', 'panel-hint', 'ESC / P  continuar   ·   ↑↓  navegar   ·   ENTER  selecionar', panel);
   }
 
   show(): void {
