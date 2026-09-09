@@ -8,8 +8,8 @@ import type { IKart, ITrack, SurfaceQuery } from '../core/types';
 import { events } from '../core/events';
 import { clamp, clamp01, damp, angleDelta, smoothstep, wrapAngle, lerp } from '../core/math';
 
-const CHASE_DISTANCE = 4.9;
-const CHASE_HEIGHT = 2.15;
+const CHASE_DISTANCE = 4.55;
+const CHASE_HEIGHT = 2.08;
 const LOOK_UP = 0.8;
 const LOOK_AHEAD = 2.5;
 const FOV_MIN = 68;
