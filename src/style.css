@@ -1942,3 +1942,8 @@ kbd {
 @media (pointer:coarse){#rio-mobile-controls{display:block}}
 .rio-pad{position:absolute;bottom:18px;width:74px;height:74px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(20,25,35,.48);color:#fff;font-size:30px;font-weight:800;pointer-events:auto;touch-action:none;user-select:none}
 #rio-left{left:18px}#rio-right{left:102px}#rio-brake{right:102px}#rio-gas{right:18px}
+/* RC RUSH identity */
+.panel-title-screen .logo-sub{color:#ffd52a;font-weight:900}
+.char-card,.track-card{border-radius:18px;border:2px solid rgba(255,255,255,.18);background:linear-gradient(180deg,rgba(18,34,51,.86),rgba(7,13,24,.9))}
+.char-card.selected,.track-card.selected{border-color:var(--card-accent);box-shadow:0 0 0 3px rgba(255,255,255,.65),0 0 28px var(--card-glow)}
+.btn.primary,.seg.selected{background:linear-gradient(90deg,#16b7ff,#7450ff,#ff5b62);font-weight:900}

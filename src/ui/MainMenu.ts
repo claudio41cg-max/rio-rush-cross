@@ -68,7 +68,7 @@ export class MainMenu {
       line.dataset.text = w;
       line.textContent = w;
     });
-    el('div', 'logo-sub', 'CORRIDA ARCADE', title);
+    el('div', 'logo-sub', 'CORRIDA SEM LIMITES', title);
     const prompt = el('div', 'press-start', undefined, title);
     el('span', 'press-start-text', 'TOQUE NA TELA PARA COMEÇAR', prompt);
     const legend = el('div', 'controls-legend glass', undefined, title);
@@ -96,7 +96,7 @@ export class MainMenu {
     const chars = el('section', 'panel-select panel-chars', undefined, this.rootNode);
     const charHead = el('header', 'select-header', undefined, chars);
     el('div', 'panel-kicker', 'ETAPA 1 / 2', charHead);
-    el('h2', 'panel-title', 'ESCOLHA SEU PILOTO', charHead);
+    el('h2', 'panel-title', 'ESCOLHA SEU CARRINHO RC', charHead);
     const charGrid = el('div', 'card-grid char-grid', undefined, chars);
     characters.forEach((c, i) => {
       const card = this.buildCharacterCard(c);
@@ -374,7 +374,7 @@ export class MainMenu {
     const road = el('div', 'track-art-road', undefined, art);
     road.style.background = cssHex(t.palette.road);
     road.style.borderColor = cssHex(t.palette.curb);
-    el('div', 'track-theme-pill pill', t.theme.toUpperCase(), art);
+    el('div', 'track-theme-pill pill', (({grassland:'GRAMA',desert:'DESERTO',snow:'NEVE',neon:'NEON',beach:'PRAIA',volcano:'VULCÃO'} as Record<string,string>)[t.theme] ?? t.theme.toUpperCase()), art);
     const body = el('div', 'track-body', undefined, card);
     const nameRow = el('div', 'track-name-row', undefined, body);
     el('div', 'card-name', t.name.toUpperCase(), nameRow);
@@ -382,8 +382,8 @@ export class MainMenu {
     for (let i = 0; i < 3; i++) el('span', i < t.difficulty ? 'star on' : 'star', '★', stars);
     el('div', 'card-tag', t.description, body);
     const meta = el('div', 'track-meta', undefined, body);
-    el('span', 'pill', `${t.laps} LAPS`, meta);
-    el('span', 'pill', `${['ROOKIE', 'PRO', 'EXPERT'][t.difficulty - 1] ?? 'PRO'}`, meta);
+    el('span', 'pill', `${t.laps} VOLTAS`, meta);
+    el('span', 'pill', `${['INICIANTE', 'PRO', 'ESPECIALISTA'][t.difficulty - 1] ?? 'PRO'}`, meta);
     return card;
   }
 }

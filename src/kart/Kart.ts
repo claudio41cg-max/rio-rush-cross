@@ -189,7 +189,7 @@ export class Kart implements IKart {
       wheelSpin: 0,
     };
     this.parts = buildKartModel(character);
-    if (isPlayer) installRioRushRCModel(this.parts);
+    installRioRushRCModel(this.parts, character);
     this.visual = this.parts.root;
     this.object = new THREE.Group();
     this.object.name = `kart-${id}-${character.id}`;
