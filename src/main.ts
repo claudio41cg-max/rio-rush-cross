@@ -23,7 +23,7 @@ function showFatal(root: HTMLElement, title: string, body: string): void {
   el('div', 'panel-kicker', GAME_TITLE, panel);
   el('h2', 'panel-title', title, panel);
   el('p', 'fatal-body', body, panel);
-  const retry = el('button', 'btn primary', 'RELOAD', panel);
+  const retry = el('button', 'btn primary', 'RECARREGAR', panel);
   retry.type = 'button';
   retry.addEventListener('click', () => window.location.reload());
 }
@@ -35,9 +35,9 @@ function boot(): void {
   if (!hasWebGL2()) {
     showFatal(
       app,
-      'WEBGL2 REQUIRED',
-      'Turbo Kart Rush needs a browser with WebGL 2 and hardware acceleration enabled. ' +
-        'Try the latest Chrome, Edge, Firefox or Safari, and make sure GPU acceleration is switched on.',
+      'WEBGL2 NECESSÁRIO',
+      'RC Rush precisa de um navegador com WebGL 2 e aceleração gráfica ativada. ' +
+        'Use uma versão atual do Chrome, Edge, Firefox ou Safari.',
     );
     return;
   }
@@ -51,11 +51,11 @@ function boot(): void {
     }
   };
   window.addEventListener('error', (ev) => {
-    report(`Runtime error: ${ev.message || 'unknown'}`, ev.error);
+    report(`Erro do jogo: ${ev.message || 'desconhecido'}`, ev.error);
   });
   window.addEventListener('unhandledrejection', (ev) => {
     const reason = ev.reason instanceof Error ? ev.reason.message : String(ev.reason);
-    report(`Unhandled promise rejection: ${reason}`, ev.reason);
+    report(`Erro ao carregar: ${reason}`, ev.reason);
   });
 
   try {
@@ -64,11 +64,7 @@ function boot(): void {
     (window as unknown as { __turboKartRush?: Game }).__turboKartRush = game;
   } catch (err) {
     console.error('[main] failed to start game', err);
-    showFatal(
-      app,
-      'FAILED TO START',
-      'Something went wrong while starting the game. Open the developer console for details, then reload.',
-    );
+    showFatal(app, 'FALHA AO INICIAR', 'Algo deu errado ao iniciar o jogo. Recarregue a página e tente novamente.');
   }
 }
 
@@ -78,20 +74,27 @@ if (document.readyState === 'loading') {
   boot();
 }
 
-
+// Controles de celular: grandes, simples e próprios para jogar com a tela deitada.
 const mobile = document.createElement('div');
 mobile.id = 'rio-mobile-controls';
 mobile.innerHTML = `
-  <button id="rio-left" class="rio-pad">◀</button>
-  <button id="rio-right" class="rio-pad">▶</button>
-  <button id="rio-brake" class="rio-pad">▼</button>
-  <button id="rio-gas" class="rio-pad">▲</button>`;
+  <button id="rio-left" class="rio-pad rio-drive"><span class="rio-icon">◀</span><span class="rio-label">ESQUERDA</span></button>
+  <button id="rio-right" class="rio-pad rio-drive"><span class="rio-icon">▶</span><span class="rio-label">DIREITA</span></button>
+  <button id="rio-item" class="rio-pad rio-item"><span class="rio-icon">★</span><span class="rio-label">ITEM</span></button>
+  <button id="rio-brake" class="rio-pad rio-drive"><span class="rio-icon">▼</span><span class="rio-label">FREIO</span></button>
+  <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">ACELERAR</span></button>`;
 document.body.appendChild(mobile);
 
-const keyMap: Record<string,string> = { 'rio-left':'ArrowLeft', 'rio-right':'ArrowRight', 'rio-brake':'ArrowDown', 'rio-gas':'ArrowUp' };
+const keyMap: Record<string,string> = {
+  'rio-left':'ArrowLeft',
+  'rio-right':'ArrowRight',
+  'rio-brake':'ArrowDown',
+  'rio-gas':'ArrowUp',
+  'rio-item':'KeyE',
+};
 for (const [id,key] of Object.entries(keyMap)) {
-  const el = document.getElementById(id)!;
-  const fire = (type:string) => window.dispatchEvent(new KeyboardEvent(type,{key,code:key,bubbles:true}));
-  el.addEventListener('pointerdown', e => { e.preventDefault(); fire('keydown'); });
-  for (const ev of ['pointerup','pointercancel','pointerleave']) el.addEventListener(ev, e => { e.preventDefault(); fire('keyup'); });
+  const control = document.getElementById(id)!;
+  const fire = (type:string) => window.dispatchEvent(new KeyboardEvent(type,{key:key === 'KeyE' ? 'e' : key,code:key,bubbles:true}));
+  control.addEventListener('pointerdown', e => { e.preventDefault(); control.setPointerCapture?.(e.pointerId); fire('keydown'); });
+  for (const ev of ['pointerup','pointercancel','pointerleave']) control.addEventListener(ev, e => { e.preventDefault(); fire('keyup'); });
 }
