@@ -1,8 +1,14 @@
-.DS_Store
+# dependencies
 node_modules/
+
+# build output (rebuilt by CI for GitHub Pages)
 dist/
+
+# local env / secrets
+.env
+.env.*
+
+# tooling
 .vite/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+*.log
+.DS_Store

@@ -1,128 +1,132 @@
-# Raycast RC Car
+# Turbo Kart Rush
 
-Play the live demo: <https://raycast-rc-car.netlify.app/>
+**An arcade kart racer in the spirit of Mario Kart, built entirely with Three.js. Every mesh, texture, sound effect and music track is generated in code at load time. There are no asset files in this repository.**
 
-[![Raycast vehicle demo](src/assets/demo.jpg)](https://raycast-rc-car.netlify.app/)
+The whole game was produced by five Claude Fable 5.1 sub-agents working in parallel from a single prompt, without a single follow-up question. The prompt is reproduced below.
 
-Interactive arcade RC car sample built with [three.js](https://threejs.org) and
-[cannon-es](https://github.com/pmndrs/cannon-es). The car uses a
-`CANNON.RaycastVehicle` chassis with GLB visuals, a GLB driving level,
-post-processing effects, mobile, desktop, and browser Gamepad API controls,
-plus a live tuning panel.
+<p align="center">
+  <a href="https://bridge-mind.github.io/turbo-kart-rush/"><img src="docs/screenshots/title.jpg" alt="Turbo Kart Rush title screen" width="800"></a>
+</p>
 
-The physics approach is inspired by [Bruno Simon's portfolio](https://bruno-simon.com/)
-and [swift502/Sketchbook](https://github.com/swift502/Sketchbook): each wheel is
-a suspension ray, while the GLB level is converted into static trimesh
-colliders for ramps, loops, and walls.
+<p align="center">
+  <a href="https://bridge-mind.github.io/turbo-kart-rush/"><strong>▶ Play it in your browser</strong></a>
+</p>
 
-## Run it
+## Play
 
-Requires Node.js 20+.
+Open **https://bridge-mind.github.io/turbo-kart-rush/** in a desktop browser with WebGL2 (Chrome, Edge, Firefox or Safari). Click or press Enter on the title screen, choose one of eight racers, pick a circuit and difficulty, then Start Race. A keyboard or a gamepad works.
+
+Three laps against seven AI drivers. Drift through corners and release for a mini-turbo. Grab item boxes and fire shells, drop bananas, pop mushrooms, or call down lightning on the field.
+
+## The prompt that built this
+
+This is the complete, verbatim prompt given to Claude Code. Nothing else was specified.
+
+> I need you to launch five Fable 5.1 sub-agents and help me build a triple A quality game that is a clone of Mario Kart. What I want you to do is I want you to launch these sub-agents, build the game without asking me any questions at all, and use 3JS to build the game. And once you're done, report back to me.
+
+## How it was built
+
+The orchestrating agent wrote an architecture contract first, then launched five sub-agents that each owned one slice of the codebase and built against shared TypeScript interfaces and a typed event bus. No sub-agent edited another's files.
+
+| Workstream | Owns | Delivers |
+| --- | --- | --- |
+| A | `src/game`, `src/ui`, `src/main.ts` | Game loop, renderer, race manager, chase camera, HUD, menus, results |
+| B | `src/kart` | Arcade kart physics, drift and mini-turbo, kart model, input, roster |
+| C | `src/track` | Procedural track builder, four circuits, terrain, sky, decorations, grandstands |
+| D | `src/items`, `src/ai` | Item boxes and ten items, AI drivers with personalities and rubber-banding |
+| E | `src/audio`, `src/fx` | Web Audio engine and music sequencer, particle system, post-processing |
+
+The contract every agent built against is in [CONTRACT.md](CONTRACT.md). It fixes the world conventions, the public API of each module, the game flow and the quality bar. `src/core` holds the shared types, constants, math helpers and event bus, and was frozen before the sub-agents started.
+
+## Features
+
+- **Eight racers** in three weight classes, each with their own kart, colours and handling: Zippy Nova, Pixel Pop, Fennec Flash, Max Vortex, Juno Bolt, Kai Tidewater, Boulder Bram and Big Rig Rosa.
+- **Four circuits**, each 900 to 1400 metres with hills, a jump crest, hairpins, S-bends and a long straight: Sunny Circuit (grassland), Dune Drift (desert), Frostbite Falls (snow, with a void section over ice) and Neon Nexus (night city).
+- **Arcade handling** with hop, drift, three-stage mini-turbo, boost pads, off-road slowdown, wall bumps and kart-to-kart collisions resolved by weight.
+- **Ten items**: banana, green shell, red shell, blue shell, mushroom, triple mushroom, golden mushroom, star, lightning and bob-omb. Item odds are weighted by race position.
+- **AI drivers** that follow a racing line, drift on corners, dodge hazards, hunt item boxes, use items sensibly and rubber-band toward the player.
+- **Fully synthesised audio**: per-kart engine synthesis with positional panning, dozens of sound effects, and a procedural chiptune sequencer with separate menu, race, final-lap and results music.
+- **Effects**: a 6000-particle GPU pool for drift sparks, boost flames, tyre smoke, dust and speed streaks, plus bloom, speed lines, radial blur, chromatic aberration and vignette in a post-processing stack.
+- **Broadcast-style presentation**: 3-2-1-GO countdown, position and lap HUD, item roulette, minimap, final-lap and wrong-way banners, results screen with confetti.
+- **Gamepad support** alongside the keyboard.
+
+## Controls
+
+| Action | Keyboard | Gamepad |
+| --- | --- | --- |
+| Throttle | W or Up | Right trigger |
+| Brake / reverse | S or Down | Left trigger |
+| Steer | A and D, or Left and Right | Left stick |
+| Hop / drift | Space or Shift | A or RB |
+| Use item | E, Ctrl or Enter | X or LB |
+| Look back | Q | |
+| Pause | Esc or P | Start |
+| Menu confirm / back | Enter or Space / Esc | A / B |
+
+Hold drift through a corner. Sparks turn blue, then orange, then purple. Release for a bigger boost the longer you held it.
+
+## Run it locally
 
 ```bash
+git clone https://github.com/bridge-mind/turbo-kart-rush.git
+cd turbo-kart-rush
 npm install
 npm run dev
 ```
 
-Then open http://localhost:5173.
+Open the URL Vite prints, which is http://localhost:5178/ by default.
 
-## Controls
-
-### Keyboard
-
-| Key | Action |
+| Script | What it does |
 | --- | --- |
-| W A S D / arrows | Drive and steer |
-| Shift | Boost |
-| Space | Jump / handbrake |
-| R | Respawn |
-| . (period) | Toggle the tuning panel |
-| Mouse drag | Orbit the camera (scroll to zoom) |
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build |
+| `npm run typecheck` | TypeScript check with no emit |
 
-### Touch (phones/tablets)
-
-An on-screen joystick (right) drives and steers, the lightning button (left)
-boosts, and the small top-left reset button respawns the car. The tuning panel
-is hidden on touch devices.
-
-### Gamepad
-
-| Input | Action |
-| --- | --- |
-| Left stick / D-pad | Steer and drive |
-| Right trigger | Gas |
-| Left trigger | Brake / reverse |
-| A (bottom button) | Jump |
-| B / right bumper | Boost |
-
-## How it works
-
-- The chassis is a single `CANNON.Box` rigid body, with small corner spheres so
-  it can collide with the level's `CANNON.Trimesh` (cannon-es trimeshes only
-  generate contacts against spheres and planes, not boxes).
-- Each wheel is a `CANNON.RaycastVehicle` wheel: a ray cast downward that acts
-  as a spring/damper suspension and applies engine, brake, and friction forces
-  at the contact point. There are no wheel collider bodies, which is what makes
-  this technique stable and fast.
-- The level (`src/assets/rc-level.glb`) is used for both rendering and physics:
-  every mesh in it becomes an exact `CANNON.Trimesh` collider, so ramps and
-  curved surfaces work without hand-made collision boxes.
-- Three.js meshes are purely visual and get synced from the physics bodies each
-  frame (`Vehicle._syncVisuals`, `World.update`).
-- The chase camera smoothly interpolates toward a point behind the car using
-  frame-rate-independent exponential damping, pulls back and widens the FOV
-  while boosting, and lifts up when the car is airborne.
-- A single post-processing pass handles color grading, vignette, chromatic
-  aberration, film noise, and the wind-streak speed effect during boost.
-- The sun's shadow camera follows the car and snaps to shadow-map texels to
-  avoid shimmering shadow edges.
-
-## Tuning the feel
-
-Press `.` or use the **Vehicle Tuning** panel (top-right, lil-gui — closed by
-default) to tweak everything live. It is organized into:
-
-- **Vehicle** — engine, steering, brakes, suspension & tires, chassis,
-  assists, and jump
-- **Camera** — FOV and clipping
-- **World** — environment height, teleporter, lighting & shadows
-- **Effects** — post processing and tire marks, including rear track spacing
-  and forward offset
-- **Models** — visual-only GLB transforms for the body and wheels
-- **Debug** — FPS readout and physics collider wireframes
-
-"Reset to defaults" restores the shipped values.
-
-Defaults live in `DEFAULT_PARAMS` at the top of `src/Vehicle.js`. Highlights:
-
-- `engineForce`, `boostMultiplier`, `cruiseSpeedKmh`, `maxSpeedKmh` —
-  acceleration and top speed (with and without boost)
-- `maxSteer`, `steerSpeed` — how sharp and how quickly the car steers
-- `frictionSlip` — grip (lower = more drifty)
-- `suspensionStiffness` / `suspensionRestLength` — ride height and bounce
-- `jumpImpulse`, `airborneGravityScale` — jump height and how floaty it feels
-- `inertiaScale`, `antiWheelie`, `tiltClampAirborne`, `uprightAssist`,
-  `wallSlideAssist` — the arcade stability assists
-- `backWidth`, `backSpacing`, `backForwardOffset` — rear tire mark placement
-  and shape
-
-## Project structure
+## Project layout
 
 ```
-index.html          HUD, mobile controls, and styles
-public/og-image.jpg Social share preview image
-src/main.js         Renderer, camera, post-processing, GUI, input, game loop
-src/Vehicle.js      Car physics, controls, visuals, tire marks
-src/World.js        Level loading, trimesh colliders, lights and shadows
-src/assets/         Car and level GLBs + reflection texture
+turbo-kart-rush/
+├── index.html                 entry page, a single #app div and the module script
+├── CONTRACT.md                architecture contract the five sub-agents built against
+├── src/
+│   ├── main.ts                boots the Game
+│   ├── style.css              menus, HUD and results styling
+│   ├── core/                  frozen shared layer: types, constants, math, event bus
+│   ├── game/                  Game loop, RaceManager, FollowCamera, menu backdrop
+│   ├── ui/                    MainMenu, HUD, Minimap, PauseMenu, ResultsScreen, LoadingScreen
+│   ├── kart/                  Kart physics, KartModel, InputManager, roster
+│   ├── track/                 Track, Centerline, TerrainField, textures, builders/, tracks/
+│   ├── items/                 ItemManager and item visuals
+│   ├── ai/                    AIDriver
+│   ├── audio/                 AudioEngine, engine synthesis, sfx, music sequencer
+│   └── fx/                    ParticleSystem, PostFX, shaders
+├── docs/screenshots/          images used in this README
+└── .github/workflows/         builds and deploys to GitHub Pages on every push to main
 ```
 
-## Gotchas worth knowing (cannon-es)
+## Technical notes
 
-1. `CANNON.Trimesh` only collides with spheres and planes. The car's box
-   chassis gets four embedded corner spheres so it can hit trimesh walls.
-2. Rays fail against rotated `CANNON.Plane` bodies — use boxes or trimeshes
-   for the ground instead.
-3. A body's AABB is computed once at construction; `position.set()` after
-   construction leaves it stale, and rays are broadphase-culled against that
-   stale AABB. Call `body.updateAABB()` after placing static bodies.
+- **Stack**: Three.js 0.185, TypeScript, Vite 8. WebGL2 with `ACESFilmicToneMapping` and shadow maps.
+- **Simulation**: a fixed-step accumulator drives kart physics, items, AI and race logic; rendering, camera, particles, audio and HUD run at display rate.
+- **Procedural everything**: textures are drawn onto canvases at load, geometry is built from primitives and merged or instanced, audio is synthesised with the Web Audio API. The production bundle is a single JavaScript file and a stylesheet.
+- **Performance targets** from the contract: 60 fps at 1080p on a 2020 laptop, under about 400 draw calls, one shadow-casting light, instanced decorations, and everything disposable so returning to the menu doesn't leak.
+
+## Deploying
+
+Every push to `main` runs `.github/workflows/deploy.yml`, which type-checks, builds and publishes `dist/` to GitHub Pages. Vite is configured with a relative `base`, so the build works from any sub-path.
+
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Character select](docs/screenshots/character-select.jpg) | ![Track select](docs/screenshots/track-select.jpg) |
+| ![Racing](docs/screenshots/race.jpg) | ![Title](docs/screenshots/title.jpg) |
+
+## Disclaimer
+
+Turbo Kart Rush is an original, fan-made homage to the kart-racing genre. It is not affiliated with, endorsed by, or associated with Nintendo. All characters, circuits, names, art, music and code in this repository are original.
+
+## License
+
+[MIT](LICENSE) © 2026 BridgeMind
