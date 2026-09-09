@@ -12,13 +12,13 @@ const GROUND_THICKNESS = 0.5
 // remain untouched.
 const LOOP_RADIUS = 11
 const LOOP_WIDTH = 7
-const LOOP_THICKNESS = 0.55
-const LOOP_SEGMENTS = 64
-const LOOP_CENTER_Z = -38
-const LOOP_BASE_Y = 0.34
-const ENTRY_LENGTH = 22
-const EXIT_LENGTH = 22
-const TRANSITION_SEGMENTS = 18
+const LOOP_THICKNESS = 0.5
+const LOOP_SEGMENTS = 72
+const LOOP_CENTER_Z = -40
+const LOOP_BASE_Y = 0.42
+const APPROACH_LENGTH = 24
+const TRANSITION_LENGTH = 9
+const TRANSITION_SEGMENTS = 16
 
 export class World {
   constructor(scene, physicsWorld, reflectionMap = null) {
@@ -33,7 +33,7 @@ export class World {
   }
 
   _createLights() {
-    const hemi = new THREE.HemisphereLight(0xcfe5ff, 0x3d4148, 2)
+    const hemi = new THREE.HemisphereLight(0xcfe5ff, 0x4f5358, 2)
     this.scene.add(hemi)
     this.hemi = hemi
 
@@ -61,10 +61,10 @@ export class World {
     const group = new THREE.Group()
     group.name = 'RioRushAsphaltLoopEnvironment'
 
-    // Flat asphalt floor only. No other obstacles or scenery.
+    // Medium-gray asphalt so the black tires stay clearly visible.
     const asphaltMaterial = new THREE.MeshStandardMaterial({
-      color: 0x303236,
-      roughness: 0.98,
+      color: 0x666a70,
+      roughness: 0.96,
       metalness: 0,
     })
 
@@ -108,38 +108,56 @@ export class World {
       loopBody.addShape(shape, offset, rotation)
     }
 
-    // Long Hot-Wheels-style entry: starts almost flush with the asphalt and
-    // rises very gently to the loop's bottom so the car can drive into it.
-    const entryStartZ = LOOP_CENTER_Z + ENTRY_LENGTH
-    for (let i = 0; i < TRANSITION_SEGMENTS; i++) {
-      const a = i / TRANSITION_SEGMENTS
-      const b = (i + 1) / TRANSITION_SEGMENTS
-      const zA = THREE.MathUtils.lerp(entryStartZ, LOOP_CENTER_Z, a)
-      const zB = THREE.MathUtils.lerp(entryStartZ, LOOP_CENTER_Z, b)
-      const yA = LOOP_BASE_Y * (a * a * (3 - 2 * a))
-      const yB = LOOP_BASE_Y * (b * b * (3 - 2 * b))
-      const dz = zB - zA
-      const dy = yB - yA
-      const length = Math.hypot(dz, dy) * 1.04
-      const angle = Math.atan2(dy, -dz)
-      addTrackBox(
-        0,
-        (yA + yB) * 0.5,
-        (zA + zB) * 0.5,
-        LOOP_WIDTH,
-        LOOP_THICKNESS,
-        length,
-        angle
-      )
+    const addSmoothRamp = (zStart, zEnd, rising) => {
+      for (let i = 0; i < TRANSITION_SEGMENTS; i++) {
+        const a = i / TRANSITION_SEGMENTS
+        const b = (i + 1) / TRANSITION_SEGMENTS
+        const smoothA = a * a * (3 - 2 * a)
+        const smoothB = b * b * (3 - 2 * b)
+
+        const zA = THREE.MathUtils.lerp(zStart, zEnd, a)
+        const zB = THREE.MathUtils.lerp(zStart, zEnd, b)
+        const yA = rising ? LOOP_BASE_Y * smoothA : LOOP_BASE_Y * (1 - smoothA)
+        const yB = rising ? LOOP_BASE_Y * smoothB : LOOP_BASE_Y * (1 - smoothB)
+
+        const dz = zB - zA
+        const dy = yB - yA
+        const length = Math.hypot(dz, dy) * 1.035
+        const rotationX = Math.atan2(-dy, dz)
+
+        addTrackBox(
+          0,
+          (yA + yB) * 0.5,
+          (zA + zB) * 0.5,
+          LOOP_WIDTH,
+          LOOP_THICKNESS,
+          length,
+          rotationX
+        )
+      }
     }
 
-    // Full vertical loop. Its bottom is slightly above the asphalt so the
-    // dedicated track collider, not the floor, carries the car through it.
-    const segmentLength = (2 * Math.PI * LOOP_RADIUS) / LOOP_SEGMENTS * 1.035
+    // Clear Hot-Wheels-style access lane in front of the loop.
+    const entryRampStart = LOOP_CENTER_Z + TRANSITION_LENGTH
+    const entryStraightStart = entryRampStart + APPROACH_LENGTH
+    addTrackBox(
+      0,
+      LOOP_THICKNESS * 0.5 + 0.025,
+      (entryStraightStart + entryRampStart) * 0.5,
+      LOOP_WIDTH,
+      LOOP_THICKNESS,
+      APPROACH_LENGTH,
+      0
+    )
+    addSmoothRamp(entryRampStart, LOOP_CENTER_Z, true)
+
+    // Full vertical loop, connected at its bottom tangent.
+    const segmentLength = (2 * Math.PI * LOOP_RADIUS) / LOOP_SEGMENTS * 1.025
     for (let i = 0; i < LOOP_SEGMENTS; i++) {
-      const theta = (i / LOOP_SEGMENTS) * Math.PI * 2
-      const y = LOOP_BASE_Y + LOOP_RADIUS + LOOP_RADIUS * Math.cos(theta)
+      const theta = Math.PI + (i / LOOP_SEGMENTS) * Math.PI * 2
+      const y = LOOP_BASE_Y + LOOP_RADIUS - LOOP_RADIUS * Math.cos(theta)
       const z = LOOP_CENTER_Z + LOOP_RADIUS * Math.sin(theta)
+      const rotationX = theta - Math.PI
 
       addTrackBox(
         0,
@@ -148,36 +166,23 @@ export class World {
         LOOP_WIDTH,
         LOOP_THICKNESS,
         segmentLength,
-        theta
+        rotationX
       )
     }
 
-    // Matching exit on the far side of the loop, descending smoothly back
-    // to the asphalt instead of ending as a bare circular ring.
-    const exitEndZ = LOOP_CENTER_Z - EXIT_LENGTH
-    for (let i = 0; i < TRANSITION_SEGMENTS; i++) {
-      const a = i / TRANSITION_SEGMENTS
-      const b = (i + 1) / TRANSITION_SEGMENTS
-      const zA = THREE.MathUtils.lerp(LOOP_CENTER_Z, exitEndZ, a)
-      const zB = THREE.MathUtils.lerp(LOOP_CENTER_Z, exitEndZ, b)
-      const easedA = 1 - a
-      const easedB = 1 - b
-      const yA = LOOP_BASE_Y * (easedA * easedA * (3 - 2 * easedA))
-      const yB = LOOP_BASE_Y * (easedB * easedB * (3 - 2 * easedB))
-      const dz = zB - zA
-      const dy = yB - yA
-      const length = Math.hypot(dz, dy) * 1.04
-      const angle = Math.atan2(dy, -dz)
-      addTrackBox(
-        0,
-        (yA + yB) * 0.5,
-        (zA + zB) * 0.5,
-        LOOP_WIDTH,
-        LOOP_THICKNESS,
-        length,
-        angle
-      )
-    }
+    // Separate exit lane on the opposite side of the loop.
+    const exitRampEnd = LOOP_CENTER_Z - TRANSITION_LENGTH
+    const exitStraightEnd = exitRampEnd - APPROACH_LENGTH
+    addSmoothRamp(LOOP_CENTER_Z, exitRampEnd, false)
+    addTrackBox(
+      0,
+      LOOP_THICKNESS * 0.5 + 0.025,
+      (exitRampEnd + exitStraightEnd) * 0.5,
+      LOOP_WIDTH,
+      LOOP_THICKNESS,
+      APPROACH_LENGTH,
+      0
+    )
 
     this.scene.add(group)
     this.house = group
