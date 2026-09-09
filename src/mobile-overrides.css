@@ -109,7 +109,6 @@
 .hud-place .place-num { font-size:66px !important;-webkit-text-stroke-width:2px !important; }
 .hud-place .place-suffix { font-size:24px !important;margin-left:2px !important; }
 
-/* Seleção de carrinhos pensada para o jogo sempre na horizontal. */
 @media (orientation: landscape) and (pointer: coarse) {
   .panel-chars {
     --col: 68vw !important;
@@ -117,40 +116,37 @@
     padding-bottom: 1.5vh !important;
     gap: .7vh !important;
   }
-  .panel-chars .select-header .panel-title {
-    font-size: clamp(25px, 3.2vw, 40px) !important;
-  }
+  .panel-chars .select-header .panel-title { font-size: clamp(25px, 3.2vw, 40px) !important; }
   .panel-chars .char-grid {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    padding: 8px 8px 12px 4px !important;
-    max-height: 58vh !important;
-    touch-action: pan-x;
+    display:flex !important;
+    flex-wrap:nowrap !important;
+    align-items:stretch !important;
+    gap:8px !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    padding:8px 8px 12px 4px !important;
+    max-height:58vh !important;
+    touch-action:pan-x;
   }
-  .panel-chars .char-grid::-webkit-scrollbar { height: 5px; }
-  .panel-chars .char-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,.32); border-radius: 8px; }
+  .panel-chars .char-grid::-webkit-scrollbar { height:5px; }
+  .panel-chars .char-grid::-webkit-scrollbar-thumb { background:rgba(255,255,255,.32);border-radius:8px; }
   .panel-chars .char-card {
-    flex: 0 0 clamp(118px, 15.5vw, 158px) !important;
-    min-width: clamp(118px, 15.5vw, 158px) !important;
-    scroll-snap-align: start;
-    padding: 8px !important;
+    flex:0 0 clamp(118px,15.5vw,158px) !important;
+    min-width:clamp(118px,15.5vw,158px) !important;
+    scroll-snap-align:start;
+    padding:8px !important;
   }
-  .panel-chars .char-swatch { height: clamp(38px, 7vh, 56px) !important; }
-  .panel-chars .card-name { font-size: clamp(14px, 1.6vw, 18px) !important; margin-top: 5px !important; }
-  .panel-chars .stats { gap: 2px !important; margin-top: 3px !important; }
-  .panel-chars .stat { gap: 5px !important; }
-  .panel-chars .stat-label { font-size: 9px !important; }
-  .panel-chars .select-footer { padding: 7px 10px !important; min-height: 48px !important; }
+  .panel-chars .char-swatch { height:clamp(38px,7vh,56px) !important; }
+  .panel-chars .card-name { font-size:clamp(14px,1.6vw,18px) !important;margin-top:5px !important; }
+  .panel-chars .stats { gap:2px !important;margin-top:3px !important; }
+  .panel-chars .stat { gap:5px !important; }
+  .panel-chars .stat-label { font-size:9px !important; }
+  .panel-chars .select-footer { padding:7px 10px !important;min-height:48px !important; }
   .panel-chars .select-info-tagline { display:none !important; }
 }
 
-/* HUD direito: VOLTA no alto, tempo logo abaixo e minimapa menor, mais alto e levemente para a esquerda. */
 .hud-topright {
   top:10px !important;
   right:22px !important;
@@ -158,19 +154,19 @@
 }
 .hud-lap,
 .hud-timer {
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background:transparent !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
 }
 .hud-lap { padding:2px 4px !important; }
-.hud-timer { padding:0 4px !important; margin-top:2px !important; }
+.hud-timer { padding:0 4px !important;margin-top:2px !important; }
 .hud-minimap {
-  top:90px !important;
-  right:104px !important;
+  top:82px !important;
+  right:92px !important;
   bottom:auto !important;
-  transform:scale(.68) !important;
+  transform:scale(.76) !important;
   transform-origin:right top !important;
   background:transparent !important;
   border-color:transparent !important;
@@ -190,5 +186,5 @@
   .hud-place .place-num { font-size:58px !important; }
   .hud-place .place-suffix { font-size:21px !important; }
   .hud-topright { top:5px !important;right:18px !important; }
-  .hud-minimap { top:72px !important;right:92px !important;transform:scale(.61) !important; }
+  .hud-minimap { top:68px !important;right:82px !important;transform:scale(.69) !important; }
 }
