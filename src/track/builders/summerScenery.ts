@@ -1,7 +1,18 @@
 import * as THREE from 'three';
 import type { BuildContext } from './context';
 import type { TrackSample } from '../../core/types';
-import { createTrackSample } from '../Track';
+
+function makeSample(): TrackSample {
+  return {
+    position: new THREE.Vector3(),
+    tangent: new THREE.Vector3(0, 0, -1),
+    normal: new THREE.Vector3(0, 1, 0),
+    binormal: new THREE.Vector3(1, 0, 0),
+    halfWidth: 8,
+    wallHalfWidth: 12,
+    t: 0,
+  };
+}
 
 function makePalm(): THREE.Group {
   const g = new THREE.Group();
@@ -66,12 +77,11 @@ export function buildSummerScenery(ctx: BuildContext): THREE.Group {
   const isSummer = ctx.def.id === 'summer_beach' || ctx.def.id === 'summer_sunset' || ctx.def.id === 'summer_tropical';
   if (!isSummer) return root;
 
-  const sample = createTrackSample();
+  const sample = makeSample();
   const sunset = ctx.def.id === 'summer_sunset';
   const tropical = ctx.def.id === 'summer_tropical';
   const waterSide = tropical ? -1 : 1;
 
-  // Ocean follows the coastline in overlapping strips so it is visible beside the road.
   const waterSteps = tropical ? 10 : 8;
   for (let i = 0; i < waterSteps; i++) {
     ctx.cl.sample((i + 0.5) / waterSteps, sample);
@@ -97,7 +107,6 @@ export function buildSummerScenery(ctx: BuildContext): THREE.Group {
     root.add(palm);
   }
 
-  // Beach umbrellas/lifeguard feel close to the sand side of the road.
   const umbrellaColors = [0xff5b45, 0xffd34e, 0x42b7ff, 0xffffff];
   const umbrellaCount = tropical ? 16 : 18;
   for (let i = 0; i < umbrellaCount; i++) {
@@ -115,7 +124,6 @@ export function buildSummerScenery(ctx: BuildContext): THREE.Group {
     root.add(u);
   }
 
-  // Tropical rocks make the third circuit feel more like a cove/island route.
   if (tropical) {
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x8f8d83, roughness: 1 });
     for (let i = 0; i < 22; i++) {
