@@ -8,10 +8,10 @@ import type { TrackDefinition } from '../../core/types';
  */
 export const frostbiteFalls: TrackDefinition = {
   id: 'frostbite_falls',
-  name: 'Frostbite Falls',
+  name: 'Quedas Congeladas',
   theme: 'snow',
   laps: 3,
-  description: 'A plunging descent onto a frozen lake causeway with nothing but ice between you and the drop.',
+  description: 'Uma descida forte até um lago congelado, com gelo e precipícios exigindo atenção total.',
   difficulty: 2,
   controlPoints: [
     { x: 0, y: 8, z: 0 }, // 0 finish line (plateau)

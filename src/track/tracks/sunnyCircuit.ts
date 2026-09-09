@@ -8,10 +8,10 @@ import type { TrackDefinition } from '../../core/types';
  */
 export const sunnyCircuit: TrackDefinition = {
   id: 'sunny_circuit',
-  name: 'Sunny Circuit',
+  name: 'Circuito Ensolarado',
   theme: 'grassland',
   laps: 3,
-  description: 'Rolling green hills, a long start straight and one tricky hairpin. The perfect warm-up.',
+  description: 'Colinas verdes, uma longa reta de largada e um grampo traiçoeiro. Perfeito para começar.',
   difficulty: 1,
   controlPoints: [
     { x: 0, y: 0, z: 0 }, // 0 finish line

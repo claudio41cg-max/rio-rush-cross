@@ -23,6 +23,7 @@ const STAT_KEYS: readonly { key: keyof CharacterDef['stats']; label: string }[] 
   { key: 'weight', label: 'PESO' },
   { key: 'miniTurbo', label: 'MT' },
 ];
+const WEIGHT_LABEL: Record<CharacterDef['weightClass'], string> = { light: 'LEVE', medium: 'MÉDIO', heavy: 'PESADO' };
 const CHAR_COLUMNS = 4;
 
 export class MainMenu {
@@ -346,7 +347,7 @@ export class MainMenu {
     el('div', 'char-wheel char-wheel-r', undefined, swatch);
     el('div', 'card-name', c.name.toUpperCase(), card);
     el('div', 'card-tag', c.tagline, card);
-    const pill = el('div', `pill weight-${c.weightClass}`, c.weightClass.toUpperCase(), card);
+    const pill = el('div', `pill weight-${c.weightClass}`, WEIGHT_LABEL[c.weightClass], card);
     pill.title = 'Categoria de peso';
     const stats = el('div', 'stats', undefined, card);
     for (const s of STAT_KEYS) {

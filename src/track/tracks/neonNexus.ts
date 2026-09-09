@@ -8,10 +8,10 @@ import type { TrackDefinition } from '../../core/types';
  */
 export const neonNexus: TrackDefinition = {
   id: 'neon_nexus',
-  name: 'Neon Nexus',
+  name: 'Nexo Neon',
   theme: 'neon',
   laps: 3,
-  description: 'Three hairpins, a rooftop jump and a flat-out neon straight under a violet sky. Experts only.',
+  description: 'Três grampos, um salto e uma reta de neon sob o céu violeta. Para pilotos experientes.',
   difficulty: 3,
   controlPoints: [
     { x: 0, y: 0, z: 0 }, // 0 finish line

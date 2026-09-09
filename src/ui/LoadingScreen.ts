@@ -21,6 +21,7 @@ const TIPS: readonly string[] = [
   'Pressione M para silenciar o áudio a qualquer momento.',
 ];
 
+const THEME_LABEL: Record<string,string> = { grassland:'CAMPO', desert:'DESERTO', snow:'NEVE', neon:'NEON' };
 const TIP_INTERVAL = 2.4;
 
 export class LoadingScreen {
@@ -55,7 +56,7 @@ export class LoadingScreen {
   show(def: TrackDefinition): void {
     this.title.set(def.name.toUpperCase());
     const stars = '★'.repeat(def.difficulty) + '☆'.repeat(3 - def.difficulty);
-    this.subtitle.set(`${def.laps} VOLTAS  ·  ${stars}  ·  ${def.theme.toUpperCase()}`);
+    this.subtitle.set(`${def.laps} VOLTAS  ·  ${stars}  ·  ${THEME_LABEL[def.theme] ?? def.theme.toUpperCase()}`);
     const env = def.environment;
     this.band.style.background = `linear-gradient(90deg, ${cssHex(env.skyTop)}, ${cssHex(env.skyHorizon)}, ${cssHex(
       def.palette.road,

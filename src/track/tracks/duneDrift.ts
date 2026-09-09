@@ -8,10 +8,10 @@ import type { TrackDefinition } from '../../core/types';
  */
 export const duneDrift: TrackDefinition = {
   id: 'dune_drift',
-  name: 'Dune Drift',
+  name: 'Derrapagem nas Dunas',
   theme: 'desert',
   laps: 3,
-  description: 'Sunset sweepers, a canyon run between towering sandstone walls and two hairpins that punish greed.',
+  description: 'Curvas ao pôr do sol, um cânion entre paredões de pedra e dois grampos que exigem cuidado.',
   difficulty: 2,
   controlPoints: [
     { x: 0, y: 0, z: 0 }, // 0 finish line

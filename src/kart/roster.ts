@@ -14,7 +14,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0xf7f9ff,
     weightClass: 'light',
     stats: { speed: 0.18, acceleration: 0.95, handling: 0.9, weight: 0.12, miniTurbo: 0.9 },
-    tagline: 'Blink and she is already two corners ahead.',
+    tagline: 'Piscou e ela já está duas curvas na frente.',
   },
   {
     id: 'pixel',
@@ -24,7 +24,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0xfff1a8,
     weightClass: 'light',
     stats: { speed: 0.12, acceleration: 0.9, handling: 0.95, weight: 0.08, miniTurbo: 0.85 },
-    tagline: 'Sugar-rush handling. Corners are her candy.',
+    tagline: 'Direção leve e rápida. Curvas são a especialidade dela.',
   },
   {
     id: 'fennec',
@@ -34,7 +34,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0x2b1b12,
     weightClass: 'light',
     stats: { speed: 0.25, acceleration: 0.85, handling: 0.8, weight: 0.2, miniTurbo: 0.95 },
-    tagline: 'Big ears, bigger mini-turbos.',
+    tagline: 'Pequeno no tamanho, grande no mini-turbo.',
   },
   // --- medium --------------------------------------------------------------
   {
@@ -45,7 +45,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0xffffff,
     weightClass: 'medium',
     stats: { speed: 0.55, acceleration: 0.55, handling: 0.55, weight: 0.5, miniTurbo: 0.55 },
-    tagline: 'The all-rounder. Every lap is a highlight reel.',
+    tagline: 'Equilibrado em tudo. Cada volta é um espetáculo.',
   },
   {
     id: 'juno',
@@ -55,7 +55,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0x161326,
     weightClass: 'medium',
     stats: { speed: 0.6, acceleration: 0.45, handling: 0.5, weight: 0.55, miniTurbo: 0.65 },
-    tagline: 'Charges every drift like a thunderstorm.',
+    tagline: 'Entra em cada derrapagem como uma tempestade.',
   },
   {
     id: 'kai',
@@ -65,7 +65,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0xdff6ff,
     weightClass: 'medium',
     stats: { speed: 0.5, acceleration: 0.6, handling: 0.65, weight: 0.45, miniTurbo: 0.5 },
-    tagline: 'Cool as the deep end, smooth as a swell.',
+    tagline: 'Frio na cabeça e suave nas curvas.',
   },
   // --- heavy ---------------------------------------------------------------
   {
@@ -76,7 +76,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0x5a3b21,
     weightClass: 'heavy',
     stats: { speed: 0.92, acceleration: 0.2, handling: 0.25, weight: 0.95, miniTurbo: 0.3 },
-    tagline: 'Slow to wake up. Impossible to shove.',
+    tagline: 'Demora a embalar, mas é quase impossível empurrar.',
   },
   {
     id: 'rosa',
@@ -86,7 +86,7 @@ export const CHARACTERS: CharacterDef[] = [
     driverColor: 0x2a2a34,
     weightClass: 'heavy',
     stats: { speed: 1.0, acceleration: 0.15, handling: 0.3, weight: 0.9, miniTurbo: 0.35 },
-    tagline: 'Eighteen wheels of attitude in a four-wheel kart.',
+    tagline: 'Força de caminhão em um carro de quatro rodas.',
   },
 ];
 
