@@ -13,6 +13,7 @@ import { buildDecorations } from './builders/decor';
 import { BOOST_PAD_LENGTH, buildBoostPads, buildGantry, buildGrandstands, buildSponsorBridges, computeItemBoxPositions, type BoostPadInfo } from './builders/props';
 import { buildAnimatedProps } from './builders/animated';
 import { buildLandmarks } from './builders/landmarks';
+import { buildSummerScenery } from './builders/summerScenery';
 
 const BOOST_PAD_HALF_LENGTH = BOOST_PAD_LENGTH / 2;
 const OFFROAD_BLEND_START = 0.5;
@@ -31,10 +32,9 @@ export class Track implements ITrack {
   const ctx:BuildContext={def,cl:this.cl,field:this.field,rng:seededRandom(hashString(def.id)),disposables:this.disposables,updaters:this.updaters,timeUniform:this.timeUniform};
   this.checkpoints=this.buildCheckpoints(); this.startGrid=this.buildStartGrid(); this.itemBoxPositions=computeItemBoxPositions(ctx,ITEM_BOX_ROW_SIZE); this.minimap=this.buildMinimap();
   const root=new THREE.Group(); root.name=`track:${def.id}`; root.add(buildSky(ctx)); root.add(buildTerrain(ctx)); root.add(buildMountains(ctx)); root.add(buildRoad(ctx)); root.add(buildBarriers(ctx));
-  // Coastal Rush deliberately keeps the immediate circuit clean. The generic grassland
-  // grandstands/gantry/decor were generated for the original layouts and can overlap this new shape.
   const cleanCoastal=def.id==='coastal_rush';
   if(!cleanCoastal){ root.add(buildDecorations(ctx)); root.add(buildLandmarks(ctx)); root.add(buildGrandstands(ctx)); root.add(buildGantry(ctx)); root.add(buildSponsorBridges(ctx)); root.add(buildAnimatedProps(ctx)); }
+  if(def.id==='summer_beach'||def.id==='summer_sunset'||def.id==='summer_tropical') root.add(buildSummerScenery(ctx));
   const pads:BoostPadInfo[]=[]; const padGroup=buildBoostPads(ctx,pads); if(padGroup) root.add(padGroup); this.boostPads=pads; this.boostPadHalfWidths=new Float64Array(this.boostPadTs.length); for(let i=0;i<pads.length&&i<this.boostPadHalfWidths.length;i++) this.boostPadHalfWidths[i]=pads[i].halfWidth;
   this.object=root;
  }
