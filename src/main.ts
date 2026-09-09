@@ -189,7 +189,8 @@ window.addEventListener('deviceorientation', (event) => {
     return;
   }
 
-  const delta = raw - tiltBaseline;
+  // Invert the sensor delta so tilting the phone right steers right and left steers left in landscape mode.
+  const delta = tiltBaseline - raw;
   const deadZone = 6;
   if (delta > deadZone) setTiltDirection(1);
   else if (delta < -deadZone) setTiltDirection(-1);
