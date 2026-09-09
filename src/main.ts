@@ -1,6 +1,7 @@
 /**
  * Bootstrap: WebGL2 detection, global error handling, then hand over to Game.
  */
+import './mobile-overrides.css';
 import { GAME_TITLE } from './core/constants';
 import { Game } from './game/Game';
 import { el } from './ui/dom';
