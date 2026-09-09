@@ -11,7 +11,11 @@ export const DEFAULT_ENVIRONMENT_PARAMS = {
 const GROUND_SIZE = 300
 const GROUND_THICKNESS = 0.5
 const ORIGINAL_LEVEL_SCALE = 3
+const LOOP_SCALE = 1.12
 const LOOP_TARGET_Z = -40
+const RAMP_LENGTH = 22
+const RAMP_THICKNESS = 0.12
+const RAMP_STEPS = 28
 
 export class World {
   constructor(scene, physicsWorld, reflectionMap = null) {
@@ -26,7 +30,7 @@ export class World {
   }
 
   _createLights() {
-    const hemi = new THREE.HemisphereLight(0xcfe5ff, 0x4f5358, 2)
+    const hemi = new THREE.HemisphereLight(0xcfe5ff, 0x56595e, 2)
     this.scene.add(hemi)
     this.hemi = hemi
 
@@ -52,11 +56,12 @@ export class World {
 
   async _createAsphaltWithOriginalLoop() {
     const group = new THREE.Group()
-    group.name = 'RioRushOriginalLoopEnvironment'
+    group.name = 'RioRushLoopOnlyEnvironment'
 
+    // Lighter medium-gray asphalt so the black tires remain visible.
     const asphaltMaterial = new THREE.MeshStandardMaterial({
-      color: 0x666a70,
-      roughness: 0.96,
+      color: 0x777b80,
+      roughness: 0.97,
       metalness: 0,
     })
 
@@ -104,14 +109,11 @@ export class World {
       const center = box.getCenter(new THREE.Vector3())
       const name = `${mesh.name} ${mesh.parent?.name ?? ''}`.toLowerCase()
       const nameBonus = /loop|ring|circle|stunt/.test(name) ? 1000 : 0
-
-      // The original loop is the tall, compact stunt structure in the level.
-      // Flat floor pieces and long ramps score much lower.
       const horizontalSpan = Math.max(size.x, size.z, 0.001)
       const compactness = size.y / horizontalSpan
       const score = nameBonus + size.y * 20 + compactness * 100 - horizontalSpan * 0.35
 
-      meshInfos.push({ mesh, box, size, center, score, name })
+      meshInfos.push({ mesh, box, size, center, score })
     })
 
     if (meshInfos.length === 0) {
@@ -121,70 +123,118 @@ export class World {
     meshInfos.sort((a, b) => b.score - a.score)
     const anchor = meshInfos[0]
 
-    const anchorHorizontalSpan = Math.max(anchor.size.x, anchor.size.z)
-    const keepRadius = Math.max(16, anchorHorizontalSpan * 1.25)
+    // Keep ONLY the real loop mesh. No nearby blocks, buildings, ramps or obstacles.
+    const loopGeometry = anchor.mesh.geometry.clone()
+    loopGeometry.applyMatrix4(anchor.mesh.matrixWorld)
 
-    // Keep the real loop plus the original pieces immediately connected to it,
-    // which preserves its proper entrance and exit. Everything else is omitted.
-    let selected = meshInfos.filter((info) => {
-      if (/loop|ring|circle|stunt/.test(info.name)) return true
+    const originalLoopBox = new THREE.Box3().setFromBufferAttribute(
+      loopGeometry.attributes.position
+    )
+    const originalCenter = originalLoopBox.getCenter(new THREE.Vector3())
+    const originalBottom = originalLoopBox.min.y
 
-      const dx = info.center.x - anchor.center.x
-      const dz = info.center.z - anchor.center.z
-      const horizontalDistance = Math.hypot(dx, dz)
-      const nearLoop = horizontalDistance <= keepRadius
-      const verticallyRelevant = info.box.max.y >= anchor.box.min.y - 2.5
-      const notHugeFloor = info.size.y > 0.35 || info.size.x < 45 || info.size.z < 45
+    // Increase the loop a little, keeping its bottom near the asphalt.
+    loopGeometry.translate(-originalCenter.x, -originalBottom, -originalCenter.z)
+    loopGeometry.scale(LOOP_SCALE, LOOP_SCALE, LOOP_SCALE)
+    loopGeometry.translate(0, 0.06, LOOP_TARGET_Z)
+    loopGeometry.computeVertexNormals()
 
-      return nearLoop && verticallyRelevant && notHugeFloor
+    const loopMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1557dc,
+      roughness: 0.38,
+      metalness: 0.08,
+      side: THREE.DoubleSide,
     })
 
-    if (selected.length === 0) selected = [anchor]
-
-    const selectionBox = new THREE.Box3()
-    for (const info of selected) selectionBox.union(info.box)
-
-    const selectionCenter = selectionBox.getCenter(new THREE.Vector3())
-    const selectionBottom = selectionBox.min.y
-    const worldOffset = new THREE.Vector3(
-      -selectionCenter.x,
-      -selectionBottom + 0.04,
-      LOOP_TARGET_Z - selectionCenter.z
-    )
-
-    const loopVisualGroup = new THREE.Group()
-    loopVisualGroup.name = 'OriginalLoopOnly'
+    const loopVisual = new THREE.Mesh(loopGeometry, loopMaterial)
+    loopVisual.name = 'OriginalLoopOnly'
+    loopVisual.castShadow = true
+    loopVisual.receiveShadow = true
+    group.add(loopVisual)
 
     const loopBody = new CANNON.Body({
       mass: 0,
       material: this.physicsWorld.defaultMaterial,
     })
+    this._addTrimeshColliderShape(loopBody, loopGeometry)
 
-    let colliderShapes = 0
+    const loopBox = new THREE.Box3().setFromBufferAttribute(loopGeometry.attributes.position)
+    const loopSize = loopBox.getSize(new THREE.Vector3())
 
-    for (const { mesh } of selected) {
-      const geometry = mesh.geometry.clone()
-      geometry.applyMatrix4(mesh.matrixWorld)
-      geometry.translate(worldOffset.x, worldOffset.y, worldOffset.z)
+    // Detect the loop travel axis automatically from the original geometry.
+    const travelAlongX = Math.abs(loopSize.x - loopSize.y) < Math.abs(loopSize.z - loopSize.y)
+    const rampWidth = THREE.MathUtils.clamp(
+      travelAlongX ? loopSize.z * 0.85 : loopSize.x * 0.85,
+      5.5,
+      8.5
+    )
 
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material.map((m) => m?.clone?.() ?? m)
-        : mesh.material?.clone?.() ?? mesh.material
+    const rampMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1557dc,
+      roughness: 0.4,
+      metalness: 0.06,
+      side: THREE.DoubleSide,
+    })
 
-      const visual = new THREE.Mesh(geometry, materials)
-      visual.name = mesh.name || 'OriginalLoopPart'
-      visual.castShadow = true
-      visual.receiveShadow = true
-      loopVisualGroup.add(visual)
+    const createThinRamp = (direction) => {
+      const positions = []
+      const indices = []
+      const halfWidth = rampWidth * 0.5
 
-      colliderShapes += this._addTrimeshColliderShape(loopBody, geometry)
+      for (let i = 0; i <= RAMP_STEPS; i++) {
+        const t = i / RAMP_STEPS
+        const smooth = t * t * (3 - 2 * t)
+        const distance = RAMP_LENGTH * t * direction
+        const yTop = 0.025 + smooth * 0.035
+        const yBottom = yTop - RAMP_THICKNESS
+
+        const centerX = travelAlongX ? distance : 0
+        const centerZ = travelAlongX ? LOOP_TARGET_Z : LOOP_TARGET_Z + distance
+
+        if (travelAlongX) {
+          positions.push(centerX, yTop, centerZ - halfWidth)
+          positions.push(centerX, yTop, centerZ + halfWidth)
+          positions.push(centerX, yBottom, centerZ - halfWidth)
+          positions.push(centerX, yBottom, centerZ + halfWidth)
+        } else {
+          positions.push(centerX - halfWidth, yTop, centerZ)
+          positions.push(centerX + halfWidth, yTop, centerZ)
+          positions.push(centerX - halfWidth, yBottom, centerZ)
+          positions.push(centerX + halfWidth, yBottom, centerZ)
+        }
+      }
+
+      for (let i = 0; i < RAMP_STEPS; i++) {
+        const a = i * 4
+        const b = (i + 1) * 4
+
+        // top
+        indices.push(a, a + 1, b, a + 1, b + 1, b)
+        // bottom
+        indices.push(a + 2, b + 2, a + 3, a + 3, b + 2, b + 3)
+        // left side
+        indices.push(a, b, a + 2, a + 2, b, b + 2)
+        // right side
+        indices.push(a + 1, a + 3, b + 1, a + 3, b + 3, b + 1)
+      }
+
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+      geometry.setIndex(indices)
+      geometry.computeVertexNormals()
+
+      const mesh = new THREE.Mesh(geometry, rampMaterial)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      group.add(mesh)
+
+      this._addTrimeshColliderShape(loopBody, geometry)
     }
 
-    if (colliderShapes === 0) {
-      throw new Error('Could not create collision for the original loop')
-    }
+    // Thin, lowered access lane before the loop and matching exit lane after it.
+    createThinRamp(1)
+    createThinRamp(-1)
 
-    group.add(loopVisualGroup)
     this.scene.add(group)
     this.house = group
 
@@ -198,12 +248,7 @@ export class World {
   _addTrimeshColliderShape(body, geometry) {
     const position = geometry?.attributes?.position
     if (!position || position.count < 3) return 0
-
-    // Keep each imported mesh within cannon-es' safe vertex range.
-    if (position.count > 32767) {
-      console.warn('Original loop mesh is too large for a safe Trimesh collider')
-      return 0
-    }
+    if (position.count > 32767) return 0
 
     const vertices = new Array(position.count * 3)
     for (let i = 0; i < position.count; i++) {
