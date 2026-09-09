@@ -8,8 +8,8 @@ import type { IKart, ITrack, SurfaceQuery } from '../core/types';
 import { events } from '../core/events';
 import { clamp, clamp01, damp, angleDelta, smoothstep, wrapAngle, lerp } from '../core/math';
 
-const CHASE_DISTANCE = 5.6;
-const CHASE_HEIGHT = 2.25;
+const CHASE_DISTANCE = 4.9;
+const CHASE_HEIGHT = 2.15;
 const LOOK_UP = 0.8;
 const LOOK_AHEAD = 2.5;
 const FOV_MIN = 68;
@@ -82,7 +82,6 @@ export class FollowCamera {
         this.shake(e.item === 'lightning' ? 0.35 : 0.65);
       }),
       events.on('item:explosion', (e) => {
-        // Nearby explosions rumble the camera a little even if we weren't hit.
         const d = this.pos.distanceTo(e.position);
         if (d < e.radius * 4) this.shake(clamp(0.5 - d / (e.radius * 8), 0.05, 0.4));
       }),
@@ -93,7 +92,6 @@ export class FollowCamera {
     this.track = track;
   }
 
-  /** Snap all smoothing state to the kart's current pose (after teleport / new race). */
   snapTo(kart: IKart): void {
     const s = kart.state;
     this.followKartId = s.id;
@@ -109,10 +107,6 @@ export class FollowCamera {
     this.apply();
   }
 
-  /**
-   * Start a cinematic that eases from (fromPos, fromLook, fromFov) into the chase
-   * position over `duration` seconds.
-   */
   setCinematic(fromPos: THREE.Vector3, fromLook: THREE.Vector3, duration: number, fromFov = 50): void {
     this.cine = true;
     this.cineTime = 0;
@@ -132,17 +126,13 @@ export class FollowCamera {
 
   update(dt: number, kart: IKart, lookBack: boolean): void {
     const s = kart.state;
-    if (!this.initialised || this.followKartId !== s.id) {
-      this.snapTo(kart);
-    }
+    if (!this.initialised || this.followKartId !== s.id) this.snapTo(kart);
 
-    // --- look-back blend (smooth both ways, no snap) --------------------------
     this.lookBackBlend = damp(this.lookBackBlend, lookBack ? 1 : 0, LOOKBACK_BLEND_LAMBDA, dt);
     if (this.lookBackBlend < 0.002) this.lookBackBlend = 0;
     else if (this.lookBackBlend > 0.998) this.lookBackBlend = 1;
     const lb = this.lookBackBlend;
 
-    // --- yaw target ---------------------------------------------------------
     let targetYaw = s.heading;
     let lambda = YAW_LAMBDA;
     if (lookBack) {
@@ -152,11 +142,10 @@ export class FollowCamera {
       targetYaw -= s.driftDirection * DRIFT_OFFSET;
       lambda = YAW_LAMBDA_DRIFT;
     }
-    if (s.isSpinning) lambda *= 0.35; // let the kart spin in frame instead of whipping the camera
+    if (s.isSpinning) lambda *= 0.35;
     const delta = angleDelta(this.yaw, targetYaw);
     this.yaw = wrapAngle(this.yaw + delta * (1 - Math.exp(-lambda * dt)));
 
-    // --- chase pose ---------------------------------------------------------
     const top = Math.max(1, kart.topSpeed());
     const speedNorm = clamp01(Math.abs(s.speed) / top);
     this.computeChase(kart, speedNorm, this.desired, this.desiredLook);
@@ -164,7 +153,7 @@ export class FollowCamera {
     if (this.cine) {
       this.cineTime += dt;
       const k = smoothstep(0, 1, this.cineTime / this.cineDuration);
-      const e = k * k * (3 - 2 * k); // extra ease-in-out for a slow start, crisp landing
+      const e = k * k * (3 - 2 * k);
       this.pos.lerpVectors(this.cineFrom, this.desired, e);
       this.look.lerpVectors(this.cineLookFrom, this.desiredLook, e);
       this.fov = lerp(this.cineFovFrom, FOV_MIN, e);
@@ -178,25 +167,21 @@ export class FollowCamera {
       this.pos.lerp(this.desired, a);
       this.look.lerp(this.desiredLook, 1 - Math.exp(-POS_LAMBDA * 1.4 * dt));
 
-      // --- FOV: speed + boost -----------------------------------------------
       const boostAmount = s.isBoosting ? clamp01(0.5 + s.boostStrength) : 0;
       const targetFov = lerp(FOV_MIN, FOV_MAX, clamp01(speedNorm * speedNorm * 0.7 + boostAmount * 0.5));
       this.fov = damp(this.fov, targetFov, 4, dt);
 
-      // --- roll with steering -----------------------------------------------
       const steer = s.steerVisual * (1 - 2 * lb);
       const driftLean = s.isDrifting ? s.driftDirection * 0.35 * (1 - lb) : 0;
       this.roll = damp(this.roll, -(steer + driftLean) * MAX_ROLL, 5, dt);
     }
 
-    // --- ground clamp -------------------------------------------------------
     if (this.track) {
       const q = this.track.query(this.pos, s.trackT, this.surf);
       const minY = q.groundY + MIN_GROUND_CLEARANCE;
       if (this.pos.y < minY) this.pos.y = minY;
     }
 
-    // --- shake --------------------------------------------------------------
     if (this.shakeAmp > 0.001) {
       this.shakePhase += dt * 60;
       this.shakeAmp = damp(this.shakeAmp, 0, SHAKE_DECAY, dt);
@@ -212,19 +197,13 @@ export class FollowCamera {
     this.track = null;
   }
 
-  // ----------------------------------------------------------------- private
-
   private computeChase(kart: IKart, speedNorm: number, outPos: THREE.Vector3, outLook: THREE.Vector3): void {
     const s = kart.state;
     const yaw = this.yaw;
     const dist = CHASE_DISTANCE + speedNorm * 0.9 + (s.isBoosting ? 0.45 : 0);
     const height = CHASE_HEIGHT + speedNorm * 0.2;
-    // Behind direction for a given yaw (kart forward is (-sin h, 0, -cos h)).
     outPos.set(Math.sin(yaw) * dist, height, Math.cos(yaw) * dist).add(s.position);
 
-    // Look target: kart + up + a bit ahead along the kart's real heading (not the
-    // damped camera yaw) so drifting shows the kart sliding across frame. The
-    // look-back blend slides the target through the kart to behind it.
     const h = s.heading;
     this.forward.set(-Math.sin(h), 0, -Math.cos(h));
     outLook.copy(s.position).addScaledVector(this.forward, LOOK_AHEAD * (1 - 2 * this.lookBackBlend));
