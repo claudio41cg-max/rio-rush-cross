@@ -1,0 +1,78 @@
+name: Build RC Rush v2
+on:
+  push:
+    paths: ['.github/workflows/rc-rush-v2.yml']
+permissions: { contents: write }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Apply RC Rush changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          # Identity and Portuguese menu
+          p=Path('src/core/constants.ts'); s=p.read_text().replace("GAME_TITLE = 'TURBO KART RUSH'","GAME_TITLE = 'RC RUSH'"); p.write_text(s)
+          p=Path('src/ui/MainMenu.ts'); s=p.read_text()
+          s=s.replace("'ESCOLHA SEU PILOTO'", "'ESCOLHA SEU CARRINHO RC'").replace("'CORRIDA ARCADE'", "'CORRIDA SEM LIMITES'")
+          s=s.replace("t.theme.toUpperCase()", "(({grassland:'GRAMA',desert:'DESERTO',snow:'NEVE',neon:'NEON',beach:'PRAIA',volcano:'VULCÃO'} as Record<string,string>)[t.theme] ?? t.theme.toUpperCase())")
+          s=s.replace("`${t.laps} LAPS`", "`${t.laps} VOLTAS`").replace("['ROOKIE', 'PRO', 'EXPERT']", "['INICIANTE', 'PRO', 'ESPECIALISTA']")
+          p.write_text(s)
+          # All racers use the RC model; preserve the original physics file otherwise.
+          p=Path('src/kart/Kart.ts'); s=p.read_text()
+          s=s.replace("if (isPlayer) installRioRushRCModel(this.parts);", "installRioRushRCModel(this.parts, character);")
+          p.write_text(s)
+          PY
+          cat > src/kart/roster.ts <<'EOF'
+          import type { CharacterDef } from '../core/types';
+          export const CHARACTERS: CharacterDef[] = [
+            {id:'zippy',name:'Vermelho',color:0xe32222,accent:0xffd23f,driverColor:0xffffff,weightClass:'medium',stats:{speed:.55,acceleration:.55,handling:.55,weight:.5,miniTurbo:.55},tagline:'Equilibrado em tudo.'},
+            {id:'pixel',name:'Azul',color:0x1769ff,accent:0x5fd8ff,driverColor:0xffffff,weightClass:'light',stats:{speed:.72,acceleration:.48,handling:.58,weight:.35,miniTurbo:.55},tagline:'Alta velocidade.'},
+            {id:'fennec',name:'Verde',color:0x1f9a4b,accent:0x8cff65,driverColor:0xffffff,weightClass:'light',stats:{speed:.48,acceleration:.58,handling:.82,weight:.35,miniTurbo:.6},tagline:'Mais aderência.'},
+            {id:'max',name:'Amarelo',color:0xffcf1f,accent:0xff8a00,driverColor:0xffffff,weightClass:'light',stats:{speed:.45,acceleration:.88,handling:.62,weight:.3,miniTurbo:.62},tagline:'Aceleração forte.'},
+            {id:'juno',name:'Laranja',color:0xff6a00,accent:0xffd04d,driverColor:0xffffff,weightClass:'medium',stats:{speed:.58,acceleration:.6,handling:.58,weight:.5,miniTurbo:.58},tagline:'Todo terreno.'},
+            {id:'kai',name:'Roxo',color:0x7c3aed,accent:0xd46bff,driverColor:0xffffff,weightClass:'medium',stats:{speed:.5,acceleration:.55,handling:.78,weight:.45,miniTurbo:.68},tagline:'Controle preciso.'},
+            {id:'bram',name:'Branco',color:0xf2f2f2,accent:0x8fdcff,driverColor:0x222222,weightClass:'light',stats:{speed:.62,acceleration:.7,handling:.65,weight:.25,miniTurbo:.62},tagline:'Leve e ágil.'},
+            {id:'rosa',name:'Preto',color:0x24242a,accent:0xff3030,driverColor:0xffffff,weightClass:'heavy',stats:{speed:1,acceleration:.25,handling:.38,weight:.9,miniTurbo:.35},tagline:'Potência máxima.'},
+          ];
+          export function getCharacter(id:string):CharacterDef{return CHARACTERS.find(c=>c.id===id)??CHARACTERS[0];}
+          EOF
+          cat > src/kart/RioRushRCModel.ts <<'EOF'
+          import * as THREE from 'three';
+          import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+          import type { CharacterDef } from '../core/types';
+          import type { KartModelPartsEx } from './KartModel';
+          import bodyUrl from '../assets/base.glb?url';
+          import flUrl from '../assets/front-left.glb?url';
+          import frUrl from '../assets/front-right.glb?url';
+          import rlUrl from '../assets/back-left.glb?url';
+          import rrUrl from '../assets/back-right.glb?url';
+          const loader=new GLTFLoader();
+          async function load(url:string){const g=await loader.loadAsync(url);g.scene.traverse(o=>{const m=o as THREE.Mesh;if(m.isMesh){m.castShadow=true;m.receiveShadow=true;}});return g.scene;}
+          function tint(root:THREE.Object3D,color:number){root.traverse(o=>{const m=o as THREE.Mesh;if(!m.isMesh)return;const src=Array.isArray(m.material)?m.material[0]:m.material;if(src instanceof THREE.MeshStandardMaterial){const mat=src.clone();mat.color.lerp(new THREE.Color(color),.62);m.material=mat;}});}
+          export function installRioRushRCModel(parts:KartModelPartsEx,character:CharacterDef):void{
+            const old=[...parts.root.children];old.forEach(c=>c.visible=false);const rc=new THREE.Group();parts.root.add(rc);
+            Promise.all([load(bodyUrl),load(flUrl),load(frUrl),load(rlUrl),load(rrUrl)]).then(([body,fl,fr,rl,rr])=>{
+              const box=new THREE.Box3().setFromObject(body),size=new THREE.Vector3();box.getSize(size);const scale=1.9/Math.max(size.x,size.z,.001);
+              body.scale.setScalar(scale);body.rotation.y=0;body.position.y=.12;tint(body,character.color);rc.add(body);
+              for(const wheel of [fl,fr,rl,rr]){wheel.scale.setScalar(scale);wheel.position.set(0,.12,0);wheel.rotation.set(0,0,0);rc.add(wheel);}
+              rc.scale.setScalar(1.08);rc.position.y=.01;
+            }).catch(e=>{console.error(e);old.forEach(c=>c.visible=true);rc.removeFromParent();});
+          }
+          EOF
+          cat >> src/style.css <<'EOF'
+          /* RC RUSH identity */
+          .panel-title-screen .logo-sub{color:#ffd52a;font-weight:900}
+          .char-card,.track-card{border-radius:18px;border:2px solid rgba(255,255,255,.18);background:linear-gradient(180deg,rgba(18,34,51,.86),rgba(7,13,24,.9))}
+          .char-card.selected,.track-card.selected{border-color:var(--card-accent);box-shadow:0 0 0 3px rgba(255,255,255,.65),0 0 28px var(--card-glow)}
+          .btn.primary,.seg.selected{background:linear-gradient(90deg,#16b7ff,#7450ff,#ff5b62);font-weight:900}
+          EOF
+      - name: Validate
+        run: npm ci && npm run typecheck && npm run build
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src && git commit -m 'RC Rush: full RC roster, Portuguese identity and corrected car size' && git push origin HEAD:main
