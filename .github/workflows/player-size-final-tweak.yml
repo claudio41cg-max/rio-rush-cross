@@ -1,0 +1,31 @@
+name: Player size final tweak
+on:
+  push:
+    paths:
+      - '.github/workflows/player-size-final-tweak.yml'
+permissions:
+  contents: write
+jobs:
+  tweak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Bring player camera a little closer
+        run: |
+          sed -i 's/const CHASE_DISTANCE = 4.55;/const CHASE_DISTANCE = 4.25;/' src/game/FollowCamera.ts
+          sed -i 's/const CHASE_HEIGHT = 2.08;/const CHASE_HEIGHT = 2.02;/' src/game/FollowCamera.ts
+      - name: Validate
+        run: |
+          npm ci
+          npm run build
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/game/FollowCamera.ts
+          git diff --cached --quiet || git commit -m 'Make player RC a little larger on screen'
+          git push
