@@ -3,6 +3,7 @@
 
 const isSummer = () => sessionStorage.getItem('rc-championship') === 'summer';
 const raceIndex = () => Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+const SUMMER_TRACK_IDS = ['summer_beach', 'summer_sunset', 'summer_tropical'] as const;
 
 function visibleTrackPanel(): HTMLElement | null {
   return document.querySelector<HTMLElement>('.panel-tracks.active');
@@ -16,17 +17,29 @@ function hideConfirmation(): void {
   });
 }
 
-function selectChampionshipTrack(panel: HTMLElement, index: number): void {
-  const cards = Array.from(panel.querySelectorAll<HTMLElement>('.track-card'));
-  const names = ['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL'];
-  const target = cards.find(c => c.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() === names[index]);
-  if (!target) return;
+function startSelectedSummerRace(index: number): boolean {
+  const game = (window as unknown as { __turboKartRush?: unknown }).__turboKartRush as any;
+  const menu = game?.mainMenu as any;
+  if (!menu || !Array.isArray(menu.tracks)) return false;
 
-  if (target.classList.contains('selected')) {
-    const other = cards.find(c => c !== target && !c.classList.contains('selected'));
-    other?.click();
+  const wantedId = SUMMER_TRACK_IDS[index];
+  const exactIndex = menu.tracks.findIndex((track: { id?: string }) => track?.id === wantedId);
+  if (exactIndex < 0) return false;
+
+  // Set MainMenu's real selected track directly. This avoids synthetic card
+  // clicks, which can accidentally start the previously selected circuit.
+  menu.trackIndex = exactIndex;
+  menu.trackRow = 0;
+  if (Array.isArray(menu.trackCards)) {
+    menu.trackCards.forEach((card: HTMLElement, i: number) => {
+      card.classList.toggle('selected', i === exactIndex);
+      card.classList.toggle('focused', i === exactIndex);
+    });
   }
-  if (!target.classList.contains('selected')) target.click();
+
+  if (typeof menu.start !== 'function') return false;
+  menu.start();
+  return true;
 }
 
 function unlockStarterCars(): void {
@@ -94,13 +107,14 @@ function install(): void {
       return;
     }
 
-    selectChampionshipTrack(panel, raceIndex());
-    // Remove the confirmation overlay BEFORE starting the race so it can never
-    // remain over the HUD/canvas on Android.
+    // Hide first, then start exactly the race stored by the Copa Verão screen.
+    // No track-card clicks and no hidden INICIAR CORRIDA button are used here.
     hideConfirmation();
     panel.style.visibility = '';
-    const raceButton = Array.from(panel.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent?.includes('INICIAR CORRIDA'));
-    raceButton?.click();
+    if (!startSelectedSummerRace(raceIndex())) {
+      // Safe fallback: show the track panel again instead of starting a wrong race.
+      panel.style.visibility = '';
+    }
   }, true);
 
   const refresh = () => {
