@@ -4,6 +4,7 @@
 import './mobile-overrides.css';
 import './progress.css';
 import './championship-preview.css';
+import './results-upgrade.css';
 import './webgl-recovery.css';
 import { GAME_TITLE } from './core/constants';
 import { Game } from './game/Game';
