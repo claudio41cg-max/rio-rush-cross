@@ -2,8 +2,10 @@ name: Apply safe progress and mobile updates
 
 on:
   push:
-    branches: [main]
-    paths: ['.github/workflows/apply-safe-updates.yml']
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-safe-updates.yml
 
 permissions:
   contents: write
@@ -12,305 +14,23 @@ jobs:
   patch-and-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
           cache: npm
-      - name: Apply safe source patches
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-
-          def read(p): return Path(p).read_text()
-          def write(p, s): Path(p).write_text(s)
-          def once(s, old, new, label):
-              if old not in s:
-                  raise SystemExit(f'Anchor not found: {label}')
-              return s.replace(old, new, 1)
-
-          # Game.ts — native race rewards + public mobile input bridge
-          p='src/game/Game.ts'; s=read(p)
-          if "from '../core/progress'" not in s:
-              s=once(s,
-                "import { clamp, clamp01, damp } from '../core/math';\n",
-                "import { clamp, clamp01, damp } from '../core/math';\nimport { awardRace } from '../core/progress';\n",
-                'Game progress import')
-          if 'get inputManager(): InputManager' not in s:
-              s=once(s,
-                "  get currentState(): GameState {\n    return this.state;\n  }\n",
-                "  get currentState(): GameState {\n    return this.state;\n  }\n\n  get inputManager(): InputManager {\n    return this.input;\n  }\n",
-                'Game inputManager getter')
-          old="""  private enterResults(): void {
-    const r = this.race;
-    if (!r || this.state === 'results') return;
-    r.hud.hide();
-    this.results.show(r.raceManager.getStandings());
-    this.setState('results');
-    this.playMusic('results');
-  }
-"""
-          new="""  private enterResults(): void {
-    const r = this.race;
-    if (!r || this.state === 'results') return;
-    r.hud.hide();
-    const standings = r.raceManager.getStandings();
-    const player = standings.find((entry) => entry.isPlayer);
-    const reward = player
-      ? awardRace(
-          player.place,
-          r.settings.difficulty,
-          r.settings.trackId,
-          player.finishTime > 0 ? player.finishTime : Infinity,
-        )
-      : null;
-    this.results.show(standings, reward);
-    this.setState('results');
-    this.playMusic('results');
-  }
-"""
-          if old in s: s=s.replace(old,new,1)
-          elif 'this.results.show(standings, reward);' not in s: raise SystemExit('Anchor not found: Game enterResults')
-          write(p,s)
-
-          # ResultsScreen.ts — show reward line
-          p='src/ui/ResultsScreen.ts'; s=read(p)
-          if "RaceReward" not in s:
-              s=once(s,
-                "import type { InputState, RaceStanding } from '../core/types';\n",
-                "import type { InputState, RaceStanding } from '../core/types';\nimport type { RaceReward } from '../core/progress';\n",
-                'Results import')
-          if 'private readonly rewardLine: HTMLElement;' not in s:
-              s=once(s,
-                "  private readonly subheading: TextField;\n  private readonly table: HTMLElement;\n",
-                "  private readonly subheading: TextField;\n  private readonly rewardLine: HTMLElement;\n  private readonly table: HTMLElement;\n",
-                'Results field')
-          if "this.rewardLine = el('div', 'results-reward'" not in s:
-              s=once(s,
-                "    this.subheading = new TextField(el('div', 'results-sub', '', this.panel));\n    this.table = el('div', 'standings', undefined, this.panel);\n",
-                "    this.subheading = new TextField(el('div', 'results-sub', '', this.panel));\n    this.rewardLine = el('div', 'results-reward', '', this.panel);\n    this.rewardLine.style.display = 'none';\n    this.table = el('div', 'standings', undefined, this.panel);\n",
-                'Results reward element')
-          s=s.replace('  show(standings: readonly RaceStanding[]): void {','  show(standings: readonly RaceStanding[], reward?: RaceReward | null): void {',1)
-          marker="""    this.panel.classList.toggle('gold', place === 1);
-
-    standings.forEach((s, i) => {
-"""
-          reward_block="""    this.panel.classList.toggle('gold', place === 1);
-
-    if (reward) {
-      const best = reward.isNewBest ? ' · NOVO RECORDE!' : '';
-      this.rewardLine.textContent = `+${reward.coins} MOEDAS${best} · Total: ${reward.totalCoins}`;
-      this.rewardLine.style.display = '';
-    } else {
-      this.rewardLine.textContent = '';
-      this.rewardLine.style.display = 'none';
-    }
-
-    standings.forEach((s, i) => {
-"""
-          if marker in s: s=s.replace(marker,reward_block,1)
-          elif 'reward.totalCoins' not in s: raise SystemExit('Anchor not found: Results reward block')
-          write(p,s)
-
-          # MainMenu.ts — native progress, locks and unlock flow while preserving championship code
-          p='src/ui/MainMenu.ts'; s=read(p)
-          if "from '../core/progress'" not in s:
-              s=once(s,
-                "import { button, cssHex, cssRgba, el, TextField } from './dom';\n",
-                "import { button, cssHex, cssRgba, el, TextField } from './dom';\nimport { showToast } from './toast';\nimport {\n  canAffordCharacter, canAffordTrack, characterUnlockCost, getCoins,\n  isCharacterUnlocked, isTrackUnlocked, refreshProgress, trackUnlockCost,\n  unlockCharacter, unlockTrack,\n} from '../core/progress';\n",
-                'MainMenu progress import')
-          if 'private readonly coinBadge: HTMLElement;' not in s:
-              s=once(s,
-                "  private visible = false;\n\n  // Character select\n",
-                "  private visible = false;\n  private readonly coinBadge: HTMLElement;\n\n  // Character select\n",
-                'MainMenu coin field')
-          if "this.coinBadge = el('div', 'coin-badge glass'" not in s:
-              s=once(s,
-                "    el('div', 'logo-sub', 'CORRIDA SEM LIMITES', title);\n",
-                "    el('div', 'logo-sub', 'CORRIDA SEM LIMITES', title);\n    this.coinBadge = el('div', 'coin-badge glass', '', title);\n",
-                'MainMenu coin badge')
-
-          s=s.replace("""      card.addEventListener('click', () => {
-        if (this.charIndex === i) this.goTo('trackSelect', true);
-        else this.setCharacter(i, true);
-      });
-      card.addEventListener('dblclick', () => this.goTo('trackSelect', true));
-""","""      card.addEventListener('click', () => {
-        if (!isCharacterUnlocked(c.id)) {
-          this.tryUnlockCharacter(c.id);
-          return;
-        }
-        if (this.charIndex === i) this.goTo('trackSelect', true);
-        else this.setCharacter(i, true);
-      });
-      card.addEventListener('dblclick', () => {
-        if (isCharacterUnlocked(c.id)) this.goTo('trackSelect', true);
-        else this.tryUnlockCharacter(c.id);
-      });
-""",1)
-          s=s.replace("charActions.appendChild(button('CONTINUAR →', 'primary', () => this.goTo('trackSelect', true)));",
-                      "charActions.appendChild(button('CONTINUAR →', 'primary', () => {\n      const id = this.characters[this.charIndex]?.id;\n      if (id && isCharacterUnlocked(id)) this.goTo('trackSelect', true);\n      else if (id) this.tryUnlockCharacter(id);\n    }));",1)
-          s=s.replace("""      card.addEventListener('click', () => {
-        if (this.trackIndex === i && this.trackRow === 0) this.start();
-        else {
-          this.trackRow = 0;
-          this.setTrack(i, true);
-        }
-      });
-""","""      card.addEventListener('click', () => {
-        if (!isTrackUnlocked(t.id)) {
-          this.tryUnlockTrack(t.id);
-          return;
-        }
-        if (this.trackIndex === i && this.trackRow === 0) this.start();
-        else {
-          this.trackRow = 0;
-          this.setTrack(i, true);
-        }
-      });
-""",1)
-          if 'refreshProgress();' not in s[s.find('show(panel:'):s.find('hide():')]:
-              s=once(s,
-                "  show(panel: MenuPanel = 'title'): void {\n    this.rootNode.classList.remove('hidden');\n",
-                "  show(panel: MenuPanel = 'title'): void {\n    refreshProgress();\n    this.refreshCoinBadge();\n    this.refreshLocks();\n    this.rootNode.classList.remove('hidden');\n",
-                'MainMenu show refresh')
-          start_anchor="""  private start(): void {
-    const track = this.tracks[this.trackIndex];
-    const character = this.characters[this.charIndex];
-    if (!track || !character) return;
-"""
-          start_new="""  private start(): void {
-    const track = this.tracks[this.trackIndex];
-    const character = this.characters[this.charIndex];
-    if (!track || !character) return;
-    if (!isCharacterUnlocked(character.id)) { this.tryUnlockCharacter(character.id); return; }
-    if (!isTrackUnlocked(track.id)) { this.tryUnlockTrack(track.id); return; }
-"""
-          if start_anchor in s: s=s.replace(start_anchor,start_new,1)
-          helper_anchor="""  private buildCharacterCard(c: CharacterDef): HTMLElement {
-"""
-          helpers="""  private refreshCoinBadge(): void {
-    this.coinBadge.textContent = `🪙 ${getCoins()}`;
-  }
-
-  private ensureLock(card: HTMLElement, locked: boolean, cost: number): void {
-    card.classList.toggle('locked', locked);
-    let overlay = card.querySelector<HTMLElement>('.lock-overlay');
-    if (!locked) { overlay?.remove(); return; }
-    if (!overlay) {
-      overlay = el('div', 'lock-overlay', undefined, card);
-      el('div', 'lock-icon', '🔒', overlay);
-      el('div', 'lock-cost', '', overlay);
-    }
-    const price = overlay.querySelector<HTMLElement>('.lock-cost');
-    if (price) price.textContent = `🪙 ${cost}`;
-  }
-
-  private refreshLocks(): void {
-    this.charCards.forEach((card, i) => {
-      const id = this.characters[i]?.id;
-      if (id) this.ensureLock(card, !isCharacterUnlocked(id), characterUnlockCost(id));
-    });
-    this.trackCards.forEach((card, i) => {
-      const id = this.tracks[i]?.id;
-      if (id) this.ensureLock(card, !isTrackUnlocked(id), trackUnlockCost(id));
-    });
-    this.refreshCoinBadge();
-  }
-
-  private tryUnlockCharacter(id: string): boolean {
-    const cost = characterUnlockCost(id);
-    if (!canAffordCharacter(id)) {
-      showToast(`Faltam ${Math.max(0, cost - getCoins())} moedas para desbloquear este carrinho.`, 'info', 2200);
-      return false;
-    }
-    const ok = unlockCharacter(id);
-    if (ok) {
-      showToast(`Carrinho desbloqueado! −${cost} moedas`, 'info', 2200);
-      this.refreshLocks();
-    }
-    return ok;
-  }
-
-  private tryUnlockTrack(id: string): boolean {
-    const cost = trackUnlockCost(id);
-    if (!canAffordTrack(id)) {
-      showToast(`Faltam ${Math.max(0, cost - getCoins())} moedas para desbloquear esta pista.`, 'info', 2200);
-      return false;
-    }
-    const ok = unlockTrack(id);
-    if (ok) {
-      showToast(`Pista desbloqueada! −${cost} moedas`, 'info', 2200);
-      this.refreshLocks();
-    }
-    return ok;
-  }
-
-  private buildCharacterCard(c: CharacterDef): HTMLElement {
-"""
-          if helper_anchor in s and 'private tryUnlockCharacter' not in s: s=s.replace(helper_anchor,helpers,1)
-          write(p,s)
-
-          # main.ts — DRIFT, haptics and safe public inputManager bridge; keep championship behavior
-          p='src/main.ts'; s=read(p)
-          if "import './progress.css';" not in s:
-              s=once(s,"import './mobile-overrides.css';\n","import './mobile-overrides.css';\nimport './progress.css';\n",'main progress css')
-          old_html="""  <button id="rio-left" class="rio-pad rio-drive"><span class="rio-icon">◀</span><span class="rio-label">ESQUERDA</span></button>
-  <button id="rio-right" class="rio-pad rio-drive"><span class="rio-icon">▶</span><span class="rio-label">DIREITA</span></button>
-  <button id="rio-item" class="rio-pad rio-item"><span class="rio-icon">★</span><span class="rio-label">ITEM</span></button>
-  <button id="rio-brake" class="rio-pad rio-drive"><span class="rio-icon">▼</span><span class="rio-label">FREIO</span></button>
-  <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">ACELERAR</span></button>
-"""
-          new_html="""  <button id="rio-left" class="rio-pad rio-drive"><span class="rio-icon">◀</span><span class="rio-label">ESQ</span></button>
-  <button id="rio-right" class="rio-pad rio-drive"><span class="rio-icon">▶</span><span class="rio-label">DIR</span></button>
-  <button id="rio-drift" class="rio-pad rio-drift"><span class="rio-icon">↻</span><span class="rio-label">DRIFT</span></button>
-  <button id="rio-item" class="rio-pad rio-item"><span class="rio-icon">★</span><span class="rio-label">ITEM</span></button>
-  <button id="rio-brake" class="rio-pad rio-drive"><span class="rio-icon">▼</span><span class="rio-label">FREIO</span></button>
-  <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">GAS</span></button>
-"""
-          if old_html in s: s=s.replace(old_html,new_html,1)
-          old_input="""  const gameWithInput = activeGame as unknown as {
-    input?: { setVirtualKey(code: string, active: boolean): void };
-  };
-  return gameWithInput.input ?? null;
-"""
-          new_input="""  const gameWithInput = activeGame as unknown as {
-    inputManager?: { setVirtualKey(code: string, active: boolean): void };
-    input?: { setVirtualKey(code: string, active: boolean): void };
-  };
-  return gameWithInput.inputManager ?? gameWithInput.input ?? null;
-"""
-          if old_input in s: s=s.replace(old_input,new_input,1)
-          if 'function haptic(' not in s:
-              s=once(s,
-                "function setVirtualControl(code: string, active: boolean): void {\n  getVirtualInput()?.setVirtualKey(code, active);\n}\n",
-                "function haptic(ms = 12): void {\n  try { if (typeof navigator.vibrate === 'function') navigator.vibrate(ms); } catch { /* ignore */ }\n}\n\nfunction setVirtualControl(code: string, active: boolean): void {\n  getVirtualInput()?.setVirtualKey(code, active);\n}\n",
-                'main haptic')
-          if "'rio-drift':'Space'" not in s:
-              s=s.replace("  'rio-item':'KeyE',\n};","  'rio-item':'KeyE',\n  'rio-drift':'Space',\n};",1)
-          if "id === 'rio-drift'" not in s:
-              s=s.replace("    setVirtualControl(code, true);\n  });","    setVirtualControl(code, true);\n    if (id === 'rio-item' || id === 'rio-drift') haptic(18);\n    else if (id === 'rio-gas') haptic(8);\n  });",1)
-          write(p,s)
-
-          # mobile CSS — add drift placement + safer landscape HUD refinements without replacing working base
-          p='src/mobile-overrides.css'; s=read(p)
-          extra='''\n\n/* === Safe landscape upgrade: drift + compact HUD === */\n#rio-drift {\n  right: 14px; bottom: 92px; width: 76px; height: 50px; border-radius: 14px;\n  border-color: rgba(120,210,255,.95);\n  background: linear-gradient(180deg,rgba(40,130,210,.96),rgba(18,60,120,.94));\n  box-shadow: 0 6px 16px rgba(40,140,255,.30), inset 0 1px 0 rgba(255,255,255,.28);\n}\n#rio-drift:active { background: linear-gradient(180deg,rgba(80,180,255,.98),rgba(30,90,180,.96)); }\n#rio-drift .rio-icon { font-size: 18px; }\n#rio-item { right: 94px; }\n.char-card,.track-card { position: relative; }\n@media (pointer: coarse) and (orientation: landscape) {\n  .hud-place { top: 10px !important; bottom: auto !important; left: 12px !important; }\n  .hud-place .place-num { font-size: 42px !important; }\n  .hud-place .place-suffix { font-size: 16px !important; }\n  .hud-speed { bottom: 8px !important; transform: translateX(-50%) scale(.62) !important; }\n  .hud-topright { top: 8px !important; right: 12px !important; }\n  .hud-minimap { top: 48px !important; right: 10px !important; transform: scale(.58) !important; transform-origin: right top !important; }\n}\n@media (pointer: coarse) and (orientation: landscape) and (max-height: 420px) {\n  #rio-drift,#rio-item { bottom: 70px; height: 46px; }\n  #rio-drift { width: 68px; }\n  #rio-item { width: 62px; right: 84px; }\n}\n'''
-          if 'Safe landscape upgrade: drift + compact HUD' not in s: s += extra
-          write(p,s)
-
-          # remove old standalone progress runtime from any prior experiment
-          q=Path('src/progress-mobile-safe.ts')
-          if q.exists(): q.unlink()
-          PY
+      - name: Apply updates
+        run: python3 scripts/apply-safe-updates.py
       - name: Install dependencies
         run: npm ci
-      - name: Typecheck/build
+      - name: Build
         run: npm run build
-      - name: Commit integrated update
+      - name: Commit changes
         run: |
           git config user.name "claudio41cg-max"
           git config user.email "claudio41cg@gmail.com"
-          git add src/game/Game.ts src/ui/ResultsScreen.ts src/ui/MainMenu.ts src/main.ts src/mobile-overrides.css src/progress.css src/core/progress.ts
-          git add -u
+          git add src scripts/apply-safe-updates.py
           git commit -m "Integrate progress and mobile drift safely" || exit 0
           git push
