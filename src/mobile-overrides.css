@@ -188,3 +188,29 @@
   .hud-topright { top:5px !important;right:18px !important; }
   .hud-minimap { top:68px !important;right:82px !important;transform:scale(.69) !important; }
 }
+
+
+/* === Safe landscape upgrade: drift + compact HUD === */
+#rio-drift {
+  right:14px; bottom:92px; width:76px; height:50px; border-radius:14px;
+  border-color:rgba(120,210,255,.95);
+  background:linear-gradient(180deg,rgba(40,130,210,.96),rgba(18,60,120,.94));
+  box-shadow:0 6px 16px rgba(40,140,255,.30),inset 0 1px 0 rgba(255,255,255,.28);
+}
+#rio-drift:active { background:linear-gradient(180deg,rgba(80,180,255,.98),rgba(30,90,180,.96)); }
+#rio-drift .rio-icon { font-size:18px; }
+#rio-item { right:94px; }
+.char-card,.track-card { position:relative; }
+@media (pointer:coarse) and (orientation:landscape) {
+  .hud-place { top:10px !important; bottom:auto !important; left:12px !important; }
+  .hud-place .place-num { font-size:42px !important; }
+  .hud-place .place-suffix { font-size:16px !important; }
+  .hud-speed { bottom:8px !important; transform:translateX(-50%) scale(.62) !important; }
+  .hud-topright { top:8px !important; right:12px !important; }
+  .hud-minimap { top:48px !important; right:10px !important; transform:scale(.58) !important; transform-origin:right top !important; }
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:420px) {
+  #rio-drift,#rio-item { bottom:70px; height:46px; }
+  #rio-drift { width:68px; }
+  #rio-item { width:62px; right:84px; }
+}

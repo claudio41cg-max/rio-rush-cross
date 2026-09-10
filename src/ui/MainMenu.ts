@@ -6,6 +6,8 @@ import type { CharacterDef, Difficulty, InputState, RaceSettings, TrackDefinitio
 import { events } from '../core/events';
 import { GAME_TITLE, DEFAULT_LAPS } from '../core/constants';
 import { button, cssHex, cssRgba, el, TextField } from './dom';
+import { showToast } from './toast';
+import { canAffordCharacter, canAffordTrack, characterUnlockCost, getCoins, isCharacterUnlocked, isTrackUnlocked, refreshProgress, trackUnlockCost, unlockCharacter, unlockTrack } from '../core/progress';
 
 export type MenuPanel = 'title' | 'characterSelect' | 'trackSelect';
 
@@ -36,6 +38,7 @@ export class MainMenu {
   private readonly panels: Record<MenuPanel, HTMLElement>;
   private panel: MenuPanel = 'title';
   private visible = false;
+  private readonly coinBadge: HTMLElement;
 
   // Character select
   private readonly charCards: HTMLElement[] = [];
@@ -77,6 +80,7 @@ export class MainMenu {
       line.textContent = w;
     });
     el('div', 'logo-sub', 'CORRIDA SEM LIMITES', title);
+    this.coinBadge = el('div', 'coin-badge glass', '', title);
     const prompt = el('div', 'press-start', undefined, title);
     el('span', 'press-start-text', 'TOQUE NA TELA PARA COMEÇAR', prompt);
     const legend = el('div', 'controls-legend glass', undefined, title);
@@ -110,10 +114,14 @@ export class MainMenu {
       const card = this.buildCharacterCard(c);
       card.addEventListener('pointerenter', () => this.setCharacter(i));
       card.addEventListener('click', () => {
+        if (!isCharacterUnlocked(c.id)) { this.tryUnlockCharacter(c.id); return; }
         if (this.charIndex === i) this.goTo('trackSelect', true);
         else this.setCharacter(i, true);
       });
-      card.addEventListener('dblclick', () => this.goTo('trackSelect', true));
+      card.addEventListener('dblclick', () => {
+        if (isCharacterUnlocked(c.id)) this.goTo('trackSelect', true);
+        else this.tryUnlockCharacter(c.id);
+      });
       charGrid.appendChild(card);
       this.charCards.push(card);
     });
@@ -123,7 +131,11 @@ export class MainMenu {
     this.charTagline = new TextField(el('div', 'select-info-tagline', '', charInfo));
     const charActions = el('div', 'actions', undefined, charFoot);
     charActions.appendChild(button('← VOLTAR', 'ghost', () => this.goTo('title', true)));
-    charActions.appendChild(button('CONTINUAR →', 'primary', () => this.goTo('trackSelect', true)));
+    charActions.appendChild(button('CONTINUAR →', 'primary', () => {
+      const id = this.characters[this.charIndex]?.id;
+      if (id && isCharacterUnlocked(id)) this.goTo('trackSelect', true);
+      else if (id) this.tryUnlockCharacter(id);
+    }));
 
     // ----------------------------------------------------------- track select
     const tr = el('section', 'panel-select panel-tracks', undefined, this.rootNode);
@@ -138,6 +150,7 @@ export class MainMenu {
         this.setTrack(i);
       });
       card.addEventListener('click', () => {
+        if (!isTrackUnlocked(t.id)) { this.tryUnlockTrack(t.id); return; }
         if (this.trackIndex === i && this.trackRow === 0) this.start();
         else {
           this.trackRow = 0;
@@ -194,6 +207,9 @@ export class MainMenu {
   }
 
   show(panel: MenuPanel = 'title'): void {
+    refreshProgress();
+    this.refreshCoinBadge();
+    this.refreshLocks();
     this.rootNode.classList.remove('hidden');
     this.visible = true;
     this.goTo(panel, false);
@@ -367,6 +383,8 @@ export class MainMenu {
     const track = this.tracks[this.trackIndex];
     const character = this.characters[this.charIndex];
     if (!track || !character) return;
+    if (!isCharacterUnlocked(character.id)) { this.tryUnlockCharacter(character.id); return; }
+    if (!isTrackUnlocked(track.id)) { this.tryUnlockTrack(track.id); return; }
     if (this.isSummerChampionship() && !SUMMER_TRACK_IDS.has(track.id)) return;
     events.emit('ui:select', {});
     this.onStart?.({
@@ -375,6 +393,57 @@ export class MainMenu {
       difficulty: DIFFICULTIES[this.difficultyIndex],
       laps: track.laps > 0 ? track.laps : DEFAULT_LAPS,
     });
+  }
+
+  private refreshCoinBadge(): void {
+    this.coinBadge.textContent = `🪙 ${getCoins()}`;
+  }
+
+  private ensureLock(card: HTMLElement, locked: boolean, cost: number): void {
+    card.classList.toggle('locked', locked);
+    let overlay = card.querySelector<HTMLElement>('.lock-overlay');
+    if (!locked) { overlay?.remove(); return; }
+    if (!overlay) {
+      overlay = el('div', 'lock-overlay', undefined, card);
+      el('div', 'lock-icon', '🔒', overlay);
+      el('div', 'lock-cost', '', overlay);
+    }
+    const price = overlay.querySelector<HTMLElement>('.lock-cost');
+    if (price) price.textContent = `🪙 ${cost}`;
+  }
+
+  private refreshLocks(): void {
+    this.charCards.forEach((card, i) => {
+      const id = this.characters[i]?.id;
+      if (id) this.ensureLock(card, !isCharacterUnlocked(id), characterUnlockCost(id));
+    });
+    this.trackCards.forEach((card, i) => {
+      const id = this.tracks[i]?.id;
+      if (id) this.ensureLock(card, !isTrackUnlocked(id), trackUnlockCost(id));
+    });
+    this.refreshCoinBadge();
+  }
+
+  private tryUnlockCharacter(id: string): boolean {
+    const cost = characterUnlockCost(id);
+    if (!canAffordCharacter(id)) {
+      showToast(`Faltam ${Math.max(0, cost - getCoins())} moedas para desbloquear este carrinho.`, 'info', 2200);
+      return false;
+    }
+    const ok = unlockCharacter(id);
+    if (ok) { showToast(`Carrinho desbloqueado! −${cost} moedas`, 'info', 2200); this.refreshLocks(); }
+    return ok;
+  }
+
+  private tryUnlockTrack(id: string): boolean {
+    const cost = trackUnlockCost(id);
+    if (!canAffordTrack(id)) {
+      showToast(`Faltam ${Math.max(0, cost - getCoins())} moedas para desbloquear esta pista.`, 'info', 2200);
+      return false;
+    }
+    const ok = unlockTrack(id);
+    if (ok) { showToast(`Pista desbloqueada! −${cost} moedas`, 'info', 2200); this.refreshLocks(); }
+    return ok;
   }
 
   private buildCharacterCard(c: CharacterDef): HTMLElement {

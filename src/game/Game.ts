@@ -24,6 +24,7 @@ import { createEmptyInput } from '../core/types';
 import { events } from '../core/events';
 import { COUNTDOWN_STEP_SECONDS, FIXED_DT, KART_COUNT, MAX_FRAME_DT } from '../core/constants';
 import { clamp, clamp01, damp } from '../core/math';
+import { awardRace } from '../core/progress';
 
 import { Kart } from '../kart/Kart';
 import { InputManager } from '../kart/InputManager';
@@ -226,6 +227,10 @@ export class Game {
 
   get currentState(): GameState {
     return this.state;
+  }
+
+  get inputManager(): InputManager {
+    return this.input;
   }
 
   dispose(): void {
@@ -799,7 +804,17 @@ export class Game {
     const r = this.race;
     if (!r || this.state === 'results') return;
     r.hud.hide();
-    this.results.show(r.raceManager.getStandings());
+    const standings = r.raceManager.getStandings();
+    const player = standings.find((entry) => entry.isPlayer);
+    const reward = player
+      ? awardRace(
+          player.place,
+          r.settings.difficulty,
+          r.settings.trackId,
+          player.finishTime > 0 ? player.finishTime : Infinity,
+        )
+      : null;
+    this.results.show(standings, reward);
     this.setState('results');
     this.playMusic('results');
   }

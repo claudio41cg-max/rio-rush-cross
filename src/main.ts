@@ -2,6 +2,7 @@
  * Bootstrap: WebGL2 detection, global error handling, then hand over to Game.
  */
 import './mobile-overrides.css';
+import './progress.css';
 import './championship-preview.css';
 import './webgl-recovery.css';
 import { GAME_TITLE } from './core/constants';
@@ -88,20 +89,26 @@ if (document.readyState === 'loading') {
 const mobile = document.createElement('div');
 mobile.id = 'rio-mobile-controls';
 mobile.innerHTML = `
-  <button id="rio-left" class="rio-pad rio-drive"><span class="rio-icon">◀</span><span class="rio-label">ESQUERDA</span></button>
-  <button id="rio-right" class="rio-pad rio-drive"><span class="rio-icon">▶</span><span class="rio-label">DIREITA</span></button>
+  <button id="rio-left" class="rio-pad rio-drive"><span class="rio-icon">◀</span><span class="rio-label">ESQ</span></button>
+  <button id="rio-right" class="rio-pad rio-drive"><span class="rio-icon">▶</span><span class="rio-label">DIR</span></button>
+  <button id="rio-drift" class="rio-pad rio-drift"><span class="rio-icon">↻</span><span class="rio-label">DRIFT</span></button>
   <button id="rio-item" class="rio-pad rio-item"><span class="rio-icon">★</span><span class="rio-label">ITEM</span></button>
   <button id="rio-brake" class="rio-pad rio-drive"><span class="rio-icon">▼</span><span class="rio-label">FREIO</span></button>
-  <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">ACELERAR</span></button>
+  <button id="rio-gas" class="rio-pad rio-drive"><span class="rio-icon">▲</span><span class="rio-label">GAS</span></button>
   <button id="rio-tilt" class="rio-tilt" type="button">INCLINAR: OFF</button>`;
 document.body.appendChild(mobile);
 
 function getVirtualInput(): { setVirtualKey(code: string, active: boolean): void } | null {
   if (!activeGame) return null;
   const gameWithInput = activeGame as unknown as {
+    inputManager?: { setVirtualKey(code: string, active: boolean): void };
     input?: { setVirtualKey(code: string, active: boolean): void };
   };
-  return gameWithInput.input ?? null;
+  return gameWithInput.inputManager ?? gameWithInput.input ?? null;
+}
+
+function haptic(ms = 12): void {
+  try { if (typeof navigator.vibrate === 'function') navigator.vibrate(ms); } catch { /* ignore */ }
 }
 
 function setVirtualControl(code: string, active: boolean): void {
@@ -145,6 +152,7 @@ const keyMap: Record<string,string> = {
   'rio-brake':'ArrowDown',
   'rio-gas':'ArrowUp',
   'rio-item':'KeyE',
+  'rio-drift':'Space',
 };
 for (const [id,code] of Object.entries(keyMap)) {
   const control = document.getElementById(id)!;
@@ -152,6 +160,8 @@ for (const [id,code] of Object.entries(keyMap)) {
     e.preventDefault();
     control.setPointerCapture?.(e.pointerId);
     setVirtualControl(code, true);
+    if (id === 'rio-item' || id === 'rio-drift') haptic(18);
+    else if (id === 'rio-gas') haptic(8);
   });
   for (const ev of ['pointerup','pointercancel','pointerleave']) {
     control.addEventListener(ev, e => {

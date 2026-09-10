@@ -3,6 +3,7 @@
  * finish and Race Again / Change Track / Main Menu actions.
  */
 import type { InputState, RaceStanding } from '../core/types';
+import type { RaceReward } from '../core/progress';
 import { events } from '../core/events';
 import { formatRaceTime, ordinal } from '../core/math';
 import { button, cssHex, el, FocusRing, TextField } from './dom';
@@ -19,6 +20,7 @@ export class ResultsScreen {
   private readonly panel: HTMLElement;
   private readonly heading: TextField;
   private readonly subheading: TextField;
+  private readonly rewardLine: HTMLElement;
   private readonly table: HTMLElement;
   private readonly confetti: HTMLElement;
   private readonly focus: FocusRing;
@@ -31,6 +33,8 @@ export class ResultsScreen {
     el('div', 'panel-kicker', 'CORRIDA CONCLUÍDA', this.panel);
     this.heading = new TextField(el('h2', 'panel-title results-title', '', this.panel));
     this.subheading = new TextField(el('div', 'results-sub', '', this.panel));
+    this.rewardLine = el('div', 'results-reward', '', this.panel);
+    this.rewardLine.style.display = 'none';
     this.table = el('div', 'standings', undefined, this.panel);
     const actions = el('div', 'actions', undefined, this.panel);
     this.focus = new FocusRing((i) => this.activate(i));
@@ -43,7 +47,7 @@ export class ResultsScreen {
     this.focus.add(menu);
   }
 
-  show(standings: readonly RaceStanding[]): void {
+  show(standings: readonly RaceStanding[], reward?: RaceReward | null): void {
     this.table.replaceChildren();
     this.confetti.replaceChildren();
     const player = standings.find((s) => s.isPlayer);
@@ -61,6 +65,15 @@ export class ResultsScreen {
             : 'Corrida difícil. Hora da revanche.',
     );
     this.panel.classList.toggle('gold', place === 1);
+
+    if (reward) {
+      const best = reward.isNewBest ? ' · NOVO RECORDE!' : '';
+      this.rewardLine.textContent = `+${reward.coins} MOEDAS${best} · Total: ${reward.totalCoins}`;
+      this.rewardLine.style.display = '';
+    } else {
+      this.rewardLine.textContent = '';
+      this.rewardLine.style.display = 'none';
+    }
 
     standings.forEach((s, i) => {
       const row = el('div', 'standing-row', undefined, this.table);
