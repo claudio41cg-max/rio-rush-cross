@@ -11,7 +11,6 @@ import { Game } from './game/Game';
 import { el } from './ui/dom';
 import { showToast } from './ui/toast';
 import { installChampionshipPreview } from './ui/ChampionshipPreview';
-import { installSummerFlowFix } from './ui/SummerFlowFix';
 import { installWebGLRecovery } from './ui/WebGLRecovery';
 
 let activeGame: Game | null = null;
@@ -75,7 +74,6 @@ function boot(): void {
     game.start();
     installChampionshipPreview();
     (window as unknown as { __turboKartRush?: Game }).__turboKartRush = game;
-    installSummerFlowFix();
   } catch (err) {
     console.error('[main] failed to start game', err);
     showFatal(app, 'FALHA AO INICIAR', 'Algo deu errado ao iniciar o jogo. Recarregue a página e tente novamente.');
