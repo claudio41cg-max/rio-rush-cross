@@ -1,7 +1,6 @@
 const SUMMER_IDS = ['summer_beach', 'summer_sunset', 'summer_tropical'] as const;
 
 type RuntimeMenu = {
-  goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void;
   setTrack?: (index: number, sound?: boolean) => void;
   trackIndex?: number;
   trackRow?: number;
@@ -19,21 +18,6 @@ function isSummerMode(): boolean {
 function getMenu(): RuntimeMenu | null {
   const game = (window as unknown as { __turboKartRush?: RuntimeGame }).__turboKartRush;
   return game?.mainMenu ?? null;
-}
-
-function hideSummerPanel(): void {
-  document.querySelector<HTMLElement>('.rc-summer-cup')?.classList.add('hidden');
-}
-
-function openCharacterSelect(): void {
-  const menu = getMenu();
-  if (menu?.goTo) {
-    menu.goTo('characterSelect', true);
-    return;
-  }
-
-  const title = document.querySelector<HTMLElement>('.panel-title-screen');
-  title?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 }
 
 function filterChampionshipTracks(): void {
@@ -74,33 +58,8 @@ function clearNonChampionshipFilter(): void {
   });
 }
 
-// Intercepta o botão antigo antes do listener dele. Assim não existe mais clique
-// sintético nem tentativa de iniciar corrida por trás da interface.
-document.addEventListener(
-  'click',
-  (ev) => {
-    const target = ev.target as HTMLElement | null;
-    const start = target?.closest<HTMLButtonElement>('.rc-summer-start');
-    if (!start) return;
-
-    ev.preventDefault();
-    ev.stopPropagation();
-    ev.stopImmediatePropagation();
-
-    sessionStorage.setItem('rc-championship', 'summer');
-    sessionStorage.removeItem('rc-summer-race');
-    document.body.classList.add('rc-summer-active');
-    hideSummerPanel();
-
-    requestAnimationFrame(() => {
-      openCharacterSelect();
-    });
-  },
-  true,
-);
-
-// Reaplica o filtro sempre que o menu troca de painel. Isto garante que, depois
-// de escolher o carro, o jogador veja somente as três pistas da Copa Verão.
+// O início da Copa é controlado exclusivamente por ChampionshipPreview.ts.
+// Este bridge não intercepta mais .rc-summer-start.
 const observer = new MutationObserver(() => {
   if (isSummerMode()) filterChampionshipTracks();
   else clearNonChampionshipFilter();
