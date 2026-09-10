@@ -1,6 +1,7 @@
 import { el } from './dom';
 
 const SUMMER_TRACK_NAMES = ['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL'];
+const SUMMER_TRACK_IDS = ['summer_beach', 'summer_sunset', 'summer_tropical'];
 const RACE_SONGS = ['SUMMER DRIVE', 'BEACH RUNNERS', 'SUNSET RACE', 'TROPICAL VIBES', 'NIGHT SPEED'];
 
 const CUPS = [
@@ -10,6 +11,19 @@ const CUPS = [
   { icon: '🏜️', name: 'COPA DO DESERTO', sub: '3 pistas quentes', state: 'BLOQUEADA', cls: 'desert' },
   { icon: '🌲', name: 'COPA FLORESTA', sub: '3 pistas verdes', state: 'BLOQUEADA', cls: 'forest' },
 ];
+
+type MenuRuntime = {
+  tracks?: Array<{ id?: string }>;
+  setTrack?: (index: number, sound?: boolean) => void;
+  setCharacter?: (index: number, sound?: boolean) => void;
+  start?: () => void;
+};
+
+type GameRuntime = { mainMenu?: MenuRuntime };
+
+function runtimeMenu(): MenuRuntime | null {
+  return ((window as unknown as { __turboKartRush?: GameRuntime }).__turboKartRush?.mainMenu) ?? null;
+}
 
 function stop(ev: Event): void {
   ev.preventDefault();
@@ -38,6 +52,21 @@ function setSummerMode(enabled: boolean): void {
   }
 }
 
+function selectedSummerTrackRuntimeIndex(): number {
+  const menu = runtimeMenu();
+  const wanted = SUMMER_TRACK_IDS[summerIndex()];
+  const idx = menu?.tracks?.findIndex((track) => track.id === wanted) ?? -1;
+  return idx >= 0 ? idx : summerIndex();
+}
+
+function startSelectedSummerRace(): void {
+  const menu = runtimeMenu();
+  if (!menu) return;
+  const idx = selectedSummerTrackRuntimeIndex();
+  menu.setTrack?.(idx, false);
+  requestAnimationFrame(() => menu.start?.());
+}
+
 function trackCards(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('.panel-tracks .track-card'));
 }
@@ -53,8 +82,6 @@ function applySummerTrackFilter(): void {
     card.hidden = !allowed;
     card.style.setProperty('display', allowed ? '' : 'none', allowed ? '' : 'important');
   }
-  const title = document.querySelector<HTMLElement>('.panel-tracks .panel-title');
-  if (title) title.textContent = 'COPA VERÃO · ESCOLHA A CORRIDA';
 }
 
 function clearTrackFilter(): void {
@@ -66,13 +93,14 @@ function clearTrackFilter(): void {
   if (title) title.textContent = 'ESCOLHA UM CIRCUITO';
 }
 
-function rememberSelectedSummerTrack(ev: Event): void {
+function adaptCharacterScreenForSummer(): void {
   if (!isSummerMode()) return;
-  const target = ev.target as HTMLElement | null;
-  const card = target?.closest<HTMLElement>('.panel-tracks .track-card');
-  if (!card) return;
-  const idx = SUMMER_TRACK_NAMES.indexOf(trackName(card));
-  if (idx >= 0) setSummerIndex(idx);
+  const panel = document.querySelector<HTMLElement>('.panel-chars.active');
+  if (!panel) return;
+  const kicker = panel.querySelector<HTMLElement>('.panel-kicker');
+  if (kicker) kicker.textContent = 'COPA VERÃO · CARRINHO';
+  const buttons = Array.from(panel.querySelectorAll<HTMLButtonElement>('.actions button'));
+  if (buttons[1]) buttons[1].textContent = 'COMEÇAR COPA VERÃO';
 }
 
 function adaptResults(): void {
@@ -82,31 +110,63 @@ function adaptResults(): void {
   const buttons = Array.from(results.querySelectorAll<HTMLButtonElement>('.actions button'));
   if (buttons.length < 3) return;
   const index = summerIndex();
-  buttons[0].textContent = 'JOGAR NOVAMENTE';
+  buttons[0].textContent = 'TENTAR DE NOVO';
   buttons[1].style.display = '';
   buttons[1].textContent = 'VOLTAR À COPA VERÃO';
-  buttons[2].textContent = 'MENU PRINCIPAL';
+  buttons[2].textContent = 'MENU';
   const kicker = results.querySelector<HTMLElement>('.panel-kicker');
   if (kicker) kicker.textContent = `COPA VERÃO · CORRIDA ${index + 1}/3`;
 }
 
-function installResultGuard(): void {
+function installSummerNavigationGuard(): void {
   document.addEventListener('click', (ev) => {
     if (!isSummerMode()) return;
     const target = ev.target as HTMLElement | null;
-    const btn = target?.closest<HTMLButtonElement>('.results .actions button');
-    if (!btn) return;
-    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.results .actions button'));
-    const i = buttons.indexOf(btn);
-    if (i === 1) {
+    if (!target) return;
+
+    const charCard = target.closest<HTMLElement>('.panel-chars.active .char-card');
+    if (charCard) {
       ev.preventDefault();
       ev.stopImmediatePropagation();
-      setTimeout(() => buttons[2]?.click(), 0);
+      const cards = Array.from(document.querySelectorAll<HTMLElement>('.panel-chars .char-card'));
+      const idx = cards.indexOf(charCard);
+      if (idx >= 0) runtimeMenu()?.setCharacter?.(idx, true);
+      adaptCharacterScreenForSummer();
       return;
     }
-    if (i === 2) {
-      setSummerMode(false);
-      clearTrackFilter();
+
+    const charButton = target.closest<HTMLButtonElement>('.panel-chars.active .actions button');
+    if (charButton) {
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.panel-chars.active .actions button'));
+      const idx = buttons.indexOf(charButton);
+      if (idx === 1) {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        startSelectedSummerRace();
+        return;
+      }
+      if (idx === 0) {
+        setSummerMode(false);
+        clearTrackFilter();
+      }
+    }
+
+    const resultButton = target.closest<HTMLButtonElement>('.results .actions button');
+    if (resultButton) {
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.results .actions button'));
+      const i = buttons.indexOf(resultButton);
+      if (i === 1) {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        setSummerMode(false);
+        clearTrackFilter();
+        setTimeout(() => buttons[2]?.click(), 0);
+        return;
+      }
+      if (i === 2) {
+        setSummerMode(false);
+        clearTrackFilter();
+      }
     }
   }, true);
 }
@@ -149,7 +209,6 @@ export function installChampionshipPreview(): void {
   const tryInstall = (): boolean => {
     const title = document.querySelector<HTMLElement>('.panel-title-screen');
     if (!title || title.querySelector('.rc-mode-menu')) return !!title;
-    if (isSummerMode()) document.body.classList.add('rc-summer-active');
 
     const modeMenu = el('div', 'rc-mode-menu', undefined, title);
     const modeTitle = el('div', 'rc-mode-title', 'ESCOLHA O MODO', modeMenu);
@@ -169,16 +228,25 @@ export function installChampionshipPreview(): void {
 
     const summerPanel = el('div', 'rc-summer-cup hidden', undefined, title);
     el('div', 'rc-cups-kicker', 'COPA VERÃO', summerPanel);
-    el('div', 'rc-cups-title', '3 CORRIDAS · SOL, PRAIA E VELOCIDADE', summerPanel);
+    el('div', 'rc-cups-title', 'ESCOLHA UMA DAS 3 CORRIDAS', summerPanel);
     const summerTracks = el('div', 'rc-summer-track-list', undefined, summerPanel);
     ['☀️ Praia ao Meio-Dia', '🌅 Orla do Pôr do Sol', '🌴 Costa Tropical'].forEach((name, i) => {
-      const item = el('div', 'rc-summer-track', undefined, summerTracks);
-      el('b', '', `${i + 1}`, item); el('span', '', name, item);
+      const item = el('button', 'rc-summer-track', undefined, summerTracks) as HTMLButtonElement;
+      item.type = 'button';
+      el('b', '', `${i + 1}`, item);
+      el('span', '', name, item);
+      item.addEventListener('click', (ev) => {
+        stop(ev);
+        setSummerMode(true);
+        setSummerIndex(i);
+        summerPanel.classList.add('hidden');
+        requestAnimationFrame(() => title.click());
+        requestAnimationFrame(adaptCharacterScreenForSummer);
+      });
     });
     const summerActions = el('div', 'rc-summer-actions', undefined, summerPanel);
     const summerBack = el('button', 'rc-cups-back', '← VOLTAR', summerActions) as HTMLButtonElement;
-    const summerStart = el('button', 'rc-mode-btn rc-mode-primary rc-summer-start', 'COMEÇAR COPA VERÃO', summerActions) as HTMLButtonElement;
-    summerBack.type = 'button'; summerStart.type = 'button';
+    summerBack.type = 'button';
 
     for (const cup of CUPS) {
       const card = el('button', `rc-cup-card ${cup.cls}`, undefined, cards) as HTMLButtonElement;
@@ -197,18 +265,16 @@ export function installChampionshipPreview(): void {
     const settingsPanel = createSettingsPanel(title);
     const settingsBack = settingsPanel.querySelector<HTMLButtonElement>('.rc-cups-back');
 
-    champ.addEventListener('click', (ev) => { stop(ev); modeMenu.classList.add('hidden'); cups.classList.remove('hidden'); });
+    champ.addEventListener('click', (ev) => {
+      stop(ev);
+      setSummerMode(false);
+      modeMenu.classList.add('hidden');
+      cups.classList.remove('hidden');
+    });
     free.addEventListener('click', (ev) => {
       stop(ev); setSummerMode(false); clearTrackFilter(); requestAnimationFrame(() => title.click());
     });
     summerBack.addEventListener('click', (ev) => { stop(ev); summerPanel.classList.add('hidden'); cups.classList.remove('hidden'); });
-    summerStart.addEventListener('click', (ev) => {
-      stop(ev);
-      setSummerMode(true);
-      sessionStorage.removeItem('rc-summer-race');
-      summerPanel.classList.add('hidden');
-      requestAnimationFrame(() => title.click());
-    });
     garage.addEventListener('click', (ev) => {
       stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => (garage.textContent = old), 900);
     });
@@ -216,12 +282,13 @@ export function installChampionshipPreview(): void {
     settingsBack?.addEventListener('click', (ev) => { stop(ev); settingsPanel.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
     back.addEventListener('click', (ev) => { stop(ev); cups.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
 
-    document.addEventListener('click', rememberSelectedSummerTrack, true);
-    installResultGuard();
+    installSummerNavigationGuard();
+
     const observer = new MutationObserver(() => {
       if (isSummerMode()) {
         document.body.classList.add('rc-summer-active');
-        if (document.querySelector('.panel-tracks.active')) applySummerTrackFilter();
+        applySummerTrackFilter();
+        adaptCharacterScreenForSummer();
         adaptResults();
       }
     });
