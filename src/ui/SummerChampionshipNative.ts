@@ -2,7 +2,6 @@ const SUMMER_IDS = new Set(['summer_beach', 'summer_sunset', 'summer_tropical'])
 const SUMMER_NAMES = new Set(['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL']);
 
 type MenuRuntime = {
-  goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void;
   setTrack?: (index: number, sound?: boolean) => void;
   trackIndex?: number;
   trackRow?: number;
@@ -17,11 +16,6 @@ function menu(): MenuRuntime | null {
 
 function inSummer(): boolean {
   return sessionStorage.getItem('rc-championship') === 'summer';
-}
-
-function openCharacterSelect(): void {
-  const m = menu();
-  if (m?.goTo) m.goTo('characterSelect', true);
 }
 
 function cardName(card: HTMLElement): string {
@@ -86,24 +80,8 @@ function scheduleEnforce(): void {
 }
 
 export function installSummerChampionshipNative(): void {
-  document.addEventListener('click', (event) => {
-    const target = event.target as HTMLElement | null;
-    const start = target?.closest<HTMLButtonElement>('.rc-summer-start');
-    if (!start) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-
-    sessionStorage.setItem('rc-championship', 'summer');
-    sessionStorage.removeItem('rc-summer-race');
-    document.body.classList.add('rc-summer-active');
-    document.querySelector<HTMLElement>('.rc-summer-cup')?.classList.add('hidden');
-
-    requestAnimationFrame(openCharacterSelect);
-    scheduleEnforce();
-  }, true);
-
+  // O botão COMEÇAR COPA VERÃO pertence ao ChampionshipPreview.ts.
+  // Este arquivo cuida somente de manter as três pistas da Copa visíveis.
   document.addEventListener('click', (event) => {
     if (!inSummer()) return;
     const target = event.target as HTMLElement | null;
