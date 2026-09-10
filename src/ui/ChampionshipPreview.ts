@@ -31,9 +31,8 @@ function setSummerIndex(i: number): void {
 
 function setSummerMode(enabled: boolean): void {
   document.body.classList.toggle('rc-summer-active', enabled);
-  if (enabled) {
-    sessionStorage.setItem('rc-championship', 'summer');
-  } else {
+  if (enabled) sessionStorage.setItem('rc-championship', 'summer');
+  else {
     sessionStorage.removeItem('rc-championship');
     sessionStorage.removeItem('rc-summer-race');
   }
@@ -50,14 +49,19 @@ function trackName(card: HTMLElement): string {
 function applySummerTrackFilter(): void {
   if (!isSummerMode()) return;
   for (const card of trackCards()) {
-    card.style.display = SUMMER_TRACK_NAMES.includes(trackName(card)) ? '' : 'none';
+    const allowed = SUMMER_TRACK_NAMES.includes(trackName(card));
+    card.hidden = !allowed;
+    card.style.setProperty('display', allowed ? '' : 'none', allowed ? '' : 'important');
   }
   const title = document.querySelector<HTMLElement>('.panel-tracks .panel-title');
   if (title) title.textContent = 'COPA VERÃO · ESCOLHA A CORRIDA';
 }
 
 function clearTrackFilter(): void {
-  for (const card of trackCards()) card.style.display = '';
+  for (const card of trackCards()) {
+    card.hidden = false;
+    card.style.removeProperty('display');
+  }
   const title = document.querySelector<HTMLElement>('.panel-tracks .panel-title');
   if (title) title.textContent = 'ESCOLHA UM CIRCUITO';
 }
@@ -97,8 +101,7 @@ function installResultGuard(): void {
     if (i === 1) {
       ev.preventDefault();
       ev.stopImmediatePropagation();
-      const menuButton = buttons[2];
-      setTimeout(() => menuButton?.click(), 0);
+      setTimeout(() => buttons[2]?.click(), 0);
       return;
     }
     if (i === 2) {
@@ -112,14 +115,10 @@ function createSettingsPanel(title: HTMLElement): HTMLElement {
   const panel = el('div', 'rc-settings hidden', undefined, title);
   el('div', 'rc-cups-kicker', 'CONFIGURAÇÕES', panel);
   el('div', 'rc-cups-title', 'ÁUDIO DA CORRIDA', panel);
-
   const volumeRow = el('div', 'rc-setting-row', undefined, panel);
   el('label', '', '🎵 VOLUME DA MÚSICA', volumeRow);
   const volume = document.createElement('input');
-  volume.type = 'range';
-  volume.min = '10';
-  volume.max = '100';
-  volume.step = '5';
+  volume.type = 'range'; volume.min = '10'; volume.max = '100'; volume.step = '5';
   volume.value = String(Math.round(Number(localStorage.getItem('rc-music-volume') ?? '0.72') * 100));
   const volumeValue = el('b', '', `${volume.value}%`, volumeRow);
   volume.addEventListener('input', () => {
@@ -127,19 +126,15 @@ function createSettingsPanel(title: HTMLElement): HTMLElement {
     localStorage.setItem('rc-music-volume', String(Number(volume.value) / 100));
   });
   volumeRow.appendChild(volume);
-
   el('div', 'rc-setting-label', 'ESCOLHER MÚSICA DA CORRIDA', panel);
   const list = el('div', 'rc-music-list', undefined, panel);
   let selected = Math.max(0, Math.min(4, Number(localStorage.getItem('rc-race-song') ?? '0')));
   const musicButtons: HTMLButtonElement[] = [];
   RACE_SONGS.forEach((name, i) => {
     const b = el('button', 'rc-music-choice', `${i + 1}. ${name}`, list) as HTMLButtonElement;
-    b.type = 'button';
-    b.classList.toggle('selected', i === selected);
+    b.type = 'button'; b.classList.toggle('selected', i === selected);
     b.addEventListener('click', (ev) => {
-      stop(ev);
-      selected = i;
-      localStorage.setItem('rc-race-song', String(i));
+      stop(ev); selected = i; localStorage.setItem('rc-race-song', String(i));
       musicButtons.forEach((x, k) => x.classList.toggle('selected', k === selected));
     });
     musicButtons.push(b);
@@ -154,13 +149,11 @@ export function installChampionshipPreview(): void {
   const tryInstall = (): boolean => {
     const title = document.querySelector<HTMLElement>('.panel-title-screen');
     if (!title || title.querySelector('.rc-mode-menu')) return !!title;
-
     if (isSummerMode()) document.body.classList.add('rc-summer-active');
 
     const modeMenu = el('div', 'rc-mode-menu', undefined, title);
     const modeTitle = el('div', 'rc-mode-title', 'ESCOLHA O MODO', modeMenu);
     modeTitle.setAttribute('aria-hidden', 'true');
-
     const row = el('div', 'rc-mode-buttons', undefined, modeMenu);
     const champ = el('button', 'rc-mode-btn rc-mode-primary', '🏆 CAMPEONATO', row) as HTMLButtonElement;
     const free = el('button', 'rc-mode-btn', '🏁 CORRIDA LIVRE', row) as HTMLButtonElement;
@@ -180,29 +173,22 @@ export function installChampionshipPreview(): void {
     const summerTracks = el('div', 'rc-summer-track-list', undefined, summerPanel);
     ['☀️ Praia ao Meio-Dia', '🌅 Orla do Pôr do Sol', '🌴 Costa Tropical'].forEach((name, i) => {
       const item = el('div', 'rc-summer-track', undefined, summerTracks);
-      el('b', '', `${i + 1}`, item);
-      el('span', '', name, item);
+      el('b', '', `${i + 1}`, item); el('span', '', name, item);
     });
-
     const summerActions = el('div', 'rc-summer-actions', undefined, summerPanel);
     const summerBack = el('button', 'rc-cups-back', '← VOLTAR', summerActions) as HTMLButtonElement;
     const summerStart = el('button', 'rc-mode-btn rc-mode-primary rc-summer-start', 'COMEÇAR COPA VERÃO', summerActions) as HTMLButtonElement;
-    summerBack.type = 'button';
-    summerStart.type = 'button';
+    summerBack.type = 'button'; summerStart.type = 'button';
 
     for (const cup of CUPS) {
       const card = el('button', `rc-cup-card ${cup.cls}`, undefined, cards) as HTMLButtonElement;
-      card.type = 'button';
-      el('div', 'rc-cup-icon', cup.icon, card);
+      card.type = 'button'; el('div', 'rc-cup-icon', cup.icon, card);
       const txt = el('div', 'rc-cup-copy', undefined, card);
-      el('strong', '', cup.name, txt);
-      el('span', '', cup.sub, txt);
+      el('strong', '', cup.name, txt); el('span', '', cup.sub, txt);
       el('small', cup.state === 'ABERTA' ? 'open' : '', cup.state, txt);
       card.addEventListener('click', (ev) => {
-        stop(ev);
-        if (cup.state !== 'ABERTA') return;
-        cups.classList.add('hidden');
-        summerPanel.classList.remove('hidden');
+        stop(ev); if (cup.state !== 'ABERTA') return;
+        cups.classList.add('hidden'); summerPanel.classList.remove('hidden');
       });
     }
 
@@ -211,61 +197,27 @@ export function installChampionshipPreview(): void {
     const settingsPanel = createSettingsPanel(title);
     const settingsBack = settingsPanel.querySelector<HTMLButtonElement>('.rc-cups-back');
 
-    champ.addEventListener('click', (ev) => {
-      stop(ev);
-      modeMenu.classList.add('hidden');
-      cups.classList.remove('hidden');
-    });
-
+    champ.addEventListener('click', (ev) => { stop(ev); modeMenu.classList.add('hidden'); cups.classList.remove('hidden'); });
     free.addEventListener('click', (ev) => {
-      stop(ev);
-      setSummerMode(false);
-      clearTrackFilter();
-      requestAnimationFrame(() => title.click());
+      stop(ev); setSummerMode(false); clearTrackFilter(); requestAnimationFrame(() => title.click());
     });
-
-    summerBack.addEventListener('click', (ev) => {
-      stop(ev);
-      summerPanel.classList.add('hidden');
-      cups.classList.remove('hidden');
-    });
-
+    summerBack.addEventListener('click', (ev) => { stop(ev); summerPanel.classList.add('hidden'); cups.classList.remove('hidden'); });
     summerStart.addEventListener('click', (ev) => {
       stop(ev);
       setSummerMode(true);
-      sessionStorage.removeItem('rc-summer-race');
+      sessionStorage.setItem('rc-summer-race', '0');
       summerPanel.classList.add('hidden');
       requestAnimationFrame(() => title.click());
     });
-
     garage.addEventListener('click', (ev) => {
-      stop(ev);
-      const old = garage.textContent;
-      garage.textContent = 'EM BREVE';
-      setTimeout(() => (garage.textContent = old), 900);
+      stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => (garage.textContent = old), 900);
     });
-
-    settings.addEventListener('click', (ev) => {
-      stop(ev);
-      modeMenu.classList.add('hidden');
-      settingsPanel.classList.remove('hidden');
-    });
-
-    settingsBack?.addEventListener('click', (ev) => {
-      stop(ev);
-      settingsPanel.classList.add('hidden');
-      modeMenu.classList.remove('hidden');
-    });
-
-    back.addEventListener('click', (ev) => {
-      stop(ev);
-      cups.classList.add('hidden');
-      modeMenu.classList.remove('hidden');
-    });
+    settings.addEventListener('click', (ev) => { stop(ev); modeMenu.classList.add('hidden'); settingsPanel.classList.remove('hidden'); });
+    settingsBack?.addEventListener('click', (ev) => { stop(ev); settingsPanel.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
+    back.addEventListener('click', (ev) => { stop(ev); cups.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
 
     document.addEventListener('click', rememberSelectedSummerTrack, true);
     installResultGuard();
-
     const observer = new MutationObserver(() => {
       if (isSummerMode()) {
         document.body.classList.add('rc-summer-active');
@@ -273,12 +225,7 @@ export function installChampionshipPreview(): void {
         adaptResults();
       }
     });
-    observer.observe(document.body, {
-      attributes: true,
-      childList: true,
-      subtree: true,
-      attributeFilter: ['class'],
-    });
+    observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class'] });
 
     const oldPrompt = title.querySelector<HTMLElement>('.press-start');
     if (oldPrompt) oldPrompt.style.display = 'none';
@@ -288,8 +235,6 @@ export function installChampionshipPreview(): void {
   };
 
   if (tryInstall()) return;
-  const observer = new MutationObserver(() => {
-    if (tryInstall()) observer.disconnect();
-  });
+  const observer = new MutationObserver(() => { if (tryInstall()) observer.disconnect(); });
   observer.observe(document.body, { childList: true, subtree: true });
 }
