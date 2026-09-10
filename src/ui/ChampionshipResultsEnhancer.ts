@@ -143,3 +143,5 @@ export function installChampionshipResultsEnhancer(): void {
   observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
   enhance();
 }
+
+installChampionshipResultsEnhancer();
