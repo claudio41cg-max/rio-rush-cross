@@ -3,13 +3,11 @@
  */
 import './mobile-overrides.css';
 import './championship-preview.css';
-import './championship-click-fix.css';
 import { GAME_TITLE } from './core/constants';
 import { Game } from './game/Game';
 import { el } from './ui/dom';
 import { showToast } from './ui/toast';
 import { installChampionshipPreview } from './ui/ChampionshipPreview';
-import './ui/ChampionshipHotfix';
 
 let activeGame: Game | null = null;
 
