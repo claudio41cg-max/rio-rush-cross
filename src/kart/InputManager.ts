@@ -170,6 +170,24 @@ export class InputManager {
     this.pressed.clear();
   }
 
+  /**
+   * Direct input source for touch buttons and tilt-steering: same GAME_KEYS
+   * codes as the keyboard (e.g. 'ArrowLeft', 'KeyE'), fed straight into the
+   * held/pressed sets. Replaces the previous approach of dispatching fake
+   * window KeyboardEvents, which was fragile (relied on the real keydown/
+   * keyup listeners picking up synthetic events) and could silently stop
+   * working if this class ever started filtering on `isTrusted` or changed
+   * its event wiring.
+   */
+  setVirtualKey(code: string, active: boolean): void {
+    if (active) {
+      if (!this.held.has(code)) this.pressed.add(code);
+      this.held.add(code);
+    } else {
+      this.held.delete(code);
+    }
+  }
+
   // ---------------------------------------------------------------------------
 
   private anyHeld(codes: readonly string[]): boolean {
