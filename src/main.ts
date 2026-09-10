@@ -129,36 +129,6 @@ function syncSummerTrackVisibility(): void {
   if (title) title.textContent = summer ? 'COPA VERÃO · ESCOLHA A CORRIDA' : 'ESCOLHA UM CIRCUITO';
 }
 
-function openSummerCharacterSelect(): void {
-  if (!activeGame) return;
-  const runtime = activeGame as unknown as {
-    mainMenu?: { goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void };
-  };
-  runtime.mainMenu?.goTo?.('characterSelect', true);
-}
-
-// Um único caminho para iniciar a Copa Verão. Intercepta o botão antes de qualquer
-// manipulador antigo, define o modo e abre a seleção de carro diretamente no MainMenu.
-document.addEventListener('click', (event) => {
-  const target = event.target as HTMLElement | null;
-  const button = target?.closest<HTMLButtonElement>('.rc-summer-start');
-  if (!button) return;
-
-  event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
-
-  sessionStorage.setItem('rc-championship', 'summer');
-  sessionStorage.removeItem('rc-summer-race');
-  document.body.classList.add('rc-summer-active');
-  document.querySelector<HTMLElement>('.rc-summer-cup')?.classList.add('hidden');
-
-  requestAnimationFrame(() => {
-    openSummerCharacterSelect();
-    syncSummerTrackVisibility();
-  });
-}, true);
-
 function syncMobileControls(): void {
   const state = activeGame?.currentState;
   const raceActive = state === 'countdown' || state === 'racing';
