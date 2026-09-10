@@ -2,13 +2,11 @@
  * Bootstrap: WebGL2 detection, global error handling, then hand over to Game.
  */
 import './mobile-overrides.css';
-import './championship-preview.css';
 import './webgl-recovery.css';
 import { GAME_TITLE } from './core/constants';
 import { Game } from './game/Game';
 import { el } from './ui/dom';
 import { showToast } from './ui/toast';
-import { installChampionshipPreview } from './ui/ChampionshipPreview';
 import { installWebGLRecovery } from './ui/WebGLRecovery';
 
 let activeGame: Game | null = null;
@@ -70,7 +68,6 @@ function boot(): void {
     activeGame = game;
     installWebGLRecovery();
     game.start();
-    installChampionshipPreview();
     (window as unknown as { __turboKartRush?: Game }).__turboKartRush = game;
   } catch (err) {
     console.error('[main] failed to start game', err);
@@ -96,6 +93,18 @@ mobile.innerHTML = `
   <button id="rio-tilt" class="rio-tilt" type="button">INCLINAR: OFF</button>`;
 document.body.appendChild(mobile);
 
+function getVirtualInput(): { setVirtualKey(code: string, active: boolean): void } | null {
+  if (!activeGame) return null;
+  const gameWithInput = activeGame as unknown as {
+    input?: { setVirtualKey(code: string, active: boolean): void };
+  };
+  return gameWithInput.input ?? null;
+}
+
+function setVirtualControl(code: string, active: boolean): void {
+  getVirtualInput()?.setVirtualKey(code, active);
+}
+
 function syncMobileControls(): void {
   const state = activeGame?.currentState;
   const raceActive = state === 'countdown' || state === 'racing';
@@ -112,11 +121,19 @@ const keyMap: Record<string,string> = {
   'rio-gas':'ArrowUp',
   'rio-item':'KeyE',
 };
-for (const [id,key] of Object.entries(keyMap)) {
+for (const [id,code] of Object.entries(keyMap)) {
   const control = document.getElementById(id)!;
-  const fire = (type:string) => window.dispatchEvent(new KeyboardEvent(type,{key:key === 'KeyE' ? 'e' : key,code:key,bubbles:true}));
-  control.addEventListener('pointerdown', e => { e.preventDefault(); control.setPointerCapture?.(e.pointerId); fire('keydown'); });
-  for (const ev of ['pointerup','pointercancel','pointerleave']) control.addEventListener(ev, e => { e.preventDefault(); fire('keyup'); });
+  control.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    control.setPointerCapture?.(e.pointerId);
+    setVirtualControl(code, true);
+  });
+  for (const ev of ['pointerup','pointercancel','pointerleave']) {
+    control.addEventListener(ev, e => {
+      e.preventDefault();
+      setVirtualControl(code, false);
+    });
+  }
 }
 
 // Direção por inclinação: opcional e independente dos botões de toque.
@@ -125,14 +142,13 @@ let tiltEnabled = false;
 let tiltBaseline: number | null = null;
 let tiltDirection = 0;
 
-function keyboardSteer(type: 'keydown' | 'keyup', direction: number): void {
+function setTiltKey(direction: number, active: boolean): void {
   if (direction === 0) return;
-  const key = direction < 0 ? 'ArrowLeft' : 'ArrowRight';
-  window.dispatchEvent(new KeyboardEvent(type, { key, code: key, bubbles: true }));
+  setVirtualControl(direction < 0 ? 'ArrowLeft' : 'ArrowRight', active);
 }
 
 function releaseTiltDirection(): void {
-  if (tiltDirection !== 0) keyboardSteer('keyup', tiltDirection);
+  if (tiltDirection !== 0) setTiltKey(tiltDirection, false);
   tiltDirection = 0;
 }
 
@@ -140,7 +156,7 @@ function setTiltDirection(next: number): void {
   if (next === tiltDirection) return;
   releaseTiltDirection();
   tiltDirection = next;
-  if (tiltDirection !== 0) keyboardSteer('keydown', tiltDirection);
+  if (tiltDirection !== 0) setTiltKey(tiltDirection, true);
 }
 
 async function enableTilt(): Promise<void> {
