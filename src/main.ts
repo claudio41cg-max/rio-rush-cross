@@ -108,11 +108,63 @@ function setVirtualControl(code: string, active: boolean): void {
   getVirtualInput()?.setVirtualKey(code, active);
 }
 
+const SUMMER_TRACK_NAMES = new Set(['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL']);
+
+function isSummerChampionship(): boolean {
+  return sessionStorage.getItem('rc-championship') === 'summer';
+}
+
+function syncSummerTrackVisibility(): void {
+  const panel = document.querySelector<HTMLElement>('.panel-tracks');
+  if (!panel) return;
+  const summer = isSummerChampionship();
+  const cards = Array.from(panel.querySelectorAll<HTMLElement>('.track-card'));
+  for (const card of cards) {
+    const name = card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
+    const allowed = SUMMER_TRACK_NAMES.has(name);
+    card.hidden = summer && !allowed;
+    card.style.display = summer && !allowed ? 'none' : '';
+  }
+  const title = panel.querySelector<HTMLElement>('.panel-title');
+  if (title) title.textContent = summer ? 'COPA VERÃO · ESCOLHA A CORRIDA' : 'ESCOLHA UM CIRCUITO';
+}
+
+function openSummerCharacterSelect(): void {
+  if (!activeGame) return;
+  const runtime = activeGame as unknown as {
+    mainMenu?: { goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void };
+  };
+  runtime.mainMenu?.goTo?.('characterSelect', true);
+}
+
+// Um único caminho para iniciar a Copa Verão. Intercepta o botão antes de qualquer
+// manipulador antigo, define o modo e abre a seleção de carro diretamente no MainMenu.
+document.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement | null;
+  const button = target?.closest<HTMLButtonElement>('.rc-summer-start');
+  if (!button) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+
+  sessionStorage.setItem('rc-championship', 'summer');
+  sessionStorage.removeItem('rc-summer-race');
+  document.body.classList.add('rc-summer-active');
+  document.querySelector<HTMLElement>('.rc-summer-cup')?.classList.add('hidden');
+
+  requestAnimationFrame(() => {
+    openSummerCharacterSelect();
+    syncSummerTrackVisibility();
+  });
+}, true);
+
 function syncMobileControls(): void {
   const state = activeGame?.currentState;
   const raceActive = state === 'countdown' || state === 'racing';
   mobile.classList.toggle('race-active', raceActive);
   if (!raceActive) releaseTiltDirection();
+  syncSummerTrackVisibility();
   requestAnimationFrame(syncMobileControls);
 }
 requestAnimationFrame(syncMobileControls);
