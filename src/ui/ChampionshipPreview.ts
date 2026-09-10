@@ -17,6 +17,7 @@ type MenuRuntime = {
   setTrack?: (index: number, sound?: boolean) => void;
   setCharacter?: (index: number, sound?: boolean) => void;
   start?: () => void;
+  goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void;
 };
 
 type GameRuntime = { mainMenu?: MenuRuntime };
@@ -34,6 +35,15 @@ function isSummerMode(): boolean {
   return sessionStorage.getItem('rc-championship') === 'summer';
 }
 
+function isSummerPending(): boolean {
+  return sessionStorage.getItem('rc-summer-pending') === '1';
+}
+
+function setSummerPending(enabled: boolean): void {
+  if (enabled) sessionStorage.setItem('rc-summer-pending', '1');
+  else sessionStorage.removeItem('rc-summer-pending');
+}
+
 function summerIndex(): number {
   const n = Number(sessionStorage.getItem('rc-summer-race') ?? '0');
   return Math.max(0, Math.min(2, Number.isFinite(n) ? Math.floor(n) : 0));
@@ -45,11 +55,18 @@ function setSummerIndex(i: number): void {
 
 function setSummerMode(enabled: boolean): void {
   document.body.classList.toggle('rc-summer-active', enabled);
-  if (enabled) sessionStorage.setItem('rc-championship', 'summer');
-  else {
+  if (enabled) {
+    sessionStorage.setItem('rc-championship', 'summer');
+  } else {
     sessionStorage.removeItem('rc-championship');
     sessionStorage.removeItem('rc-summer-race');
   }
+}
+
+function cancelSummerFlow(): void {
+  setSummerPending(false);
+  setSummerMode(false);
+  clearTrackFilter();
 }
 
 function selectedSummerTrackRuntimeIndex(): number {
@@ -63,8 +80,24 @@ function startSelectedSummerRace(): void {
   const menu = runtimeMenu();
   if (!menu) return;
   const idx = selectedSummerTrackRuntimeIndex();
+  setSummerPending(false);
+  setSummerMode(true);
   menu.setTrack?.(idx, false);
   requestAnimationFrame(() => menu.start?.());
+}
+
+function openSummerCharacterSelect(): void {
+  const menu = runtimeMenu();
+  if (menu?.goTo) {
+    menu.goTo('characterSelect', true);
+    requestAnimationFrame(adaptCharacterScreenForSummer);
+    return;
+  }
+
+  // Fallback seguro: usa o clique do título apenas se o runtime não estiver exposto.
+  const title = document.querySelector<HTMLElement>('.panel-title-screen');
+  requestAnimationFrame(() => title?.click());
+  requestAnimationFrame(adaptCharacterScreenForSummer);
 }
 
 function trackCards(): HTMLElement[] {
@@ -94,7 +127,7 @@ function clearTrackFilter(): void {
 }
 
 function adaptCharacterScreenForSummer(): void {
-  if (!isSummerMode()) return;
+  if (!isSummerPending() && !isSummerMode()) return;
   const panel = document.querySelector<HTMLElement>('.panel-chars.active');
   if (!panel) return;
   const kicker = panel.querySelector<HTMLElement>('.panel-kicker');
@@ -120,12 +153,12 @@ function adaptResults(): void {
 
 function installSummerNavigationGuard(): void {
   document.addEventListener('click', (ev) => {
-    if (!isSummerMode()) return;
+    if (!isSummerPending() && !isSummerMode()) return;
     const target = ev.target as HTMLElement | null;
     if (!target) return;
 
     const charCard = target.closest<HTMLElement>('.panel-chars.active .char-card');
-    if (charCard) {
+    if (charCard && isSummerPending()) {
       ev.preventDefault();
       ev.stopImmediatePropagation();
       const cards = Array.from(document.querySelectorAll<HTMLElement>('.panel-chars .char-card'));
@@ -136,7 +169,7 @@ function installSummerNavigationGuard(): void {
     }
 
     const charButton = target.closest<HTMLButtonElement>('.panel-chars.active .actions button');
-    if (charButton) {
+    if (charButton && isSummerPending()) {
       const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.panel-chars.active .actions button'));
       const idx = buttons.indexOf(charButton);
       if (idx === 1) {
@@ -146,27 +179,26 @@ function installSummerNavigationGuard(): void {
         return;
       }
       if (idx === 0) {
-        setSummerMode(false);
-        clearTrackFilter();
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        cancelSummerFlow();
+        runtimeMenu()?.goTo?.('title', true);
+        return;
       }
     }
 
     const resultButton = target.closest<HTMLButtonElement>('.results .actions button');
-    if (resultButton) {
+    if (resultButton && isSummerMode()) {
       const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.results .actions button'));
       const i = buttons.indexOf(resultButton);
       if (i === 1) {
         ev.preventDefault();
         ev.stopImmediatePropagation();
-        setSummerMode(false);
-        clearTrackFilter();
+        cancelSummerFlow();
         setTimeout(() => buttons[2]?.click(), 0);
         return;
       }
-      if (i === 2) {
-        setSummerMode(false);
-        clearTrackFilter();
-      }
+      if (i === 2) cancelSummerFlow();
     }
   }, true);
 }
@@ -210,6 +242,9 @@ export function installChampionshipPreview(): void {
     const title = document.querySelector<HTMLElement>('.panel-title-screen');
     if (!title || title.querySelector('.rc-mode-menu')) return !!title;
 
+    // Limpa uma tentativa antiga interrompida ao recarregar a página.
+    setSummerPending(false);
+
     const modeMenu = el('div', 'rc-mode-menu', undefined, title);
     const modeTitle = el('div', 'rc-mode-title', 'ESCOLHA O MODO', modeMenu);
     modeTitle.setAttribute('aria-hidden', 'true');
@@ -237,11 +272,10 @@ export function installChampionshipPreview(): void {
       el('span', '', name, item);
       item.addEventListener('click', (ev) => {
         stop(ev);
-        setSummerMode(true);
         setSummerIndex(i);
+        setSummerPending(true);
         summerPanel.classList.add('hidden');
-        requestAnimationFrame(() => title.click());
-        requestAnimationFrame(adaptCharacterScreenForSummer);
+        openSummerCharacterSelect();
       });
     });
     const summerActions = el('div', 'rc-summer-actions', undefined, summerPanel);
@@ -267,20 +301,22 @@ export function installChampionshipPreview(): void {
 
     champ.addEventListener('click', (ev) => {
       stop(ev);
-      setSummerMode(false);
+      cancelSummerFlow();
       modeMenu.classList.add('hidden');
       cups.classList.remove('hidden');
     });
     free.addEventListener('click', (ev) => {
-      stop(ev); setSummerMode(false); clearTrackFilter(); requestAnimationFrame(() => title.click());
+      stop(ev); cancelSummerFlow(); requestAnimationFrame(() => title.click());
     });
-    summerBack.addEventListener('click', (ev) => { stop(ev); summerPanel.classList.add('hidden'); cups.classList.remove('hidden'); });
+    summerBack.addEventListener('click', (ev) => {
+      stop(ev); setSummerPending(false); summerPanel.classList.add('hidden'); cups.classList.remove('hidden');
+    });
     garage.addEventListener('click', (ev) => {
       stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => (garage.textContent = old), 900);
     });
     settings.addEventListener('click', (ev) => { stop(ev); modeMenu.classList.add('hidden'); settingsPanel.classList.remove('hidden'); });
     settingsBack?.addEventListener('click', (ev) => { stop(ev); settingsPanel.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
-    back.addEventListener('click', (ev) => { stop(ev); cups.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
+    back.addEventListener('click', (ev) => { stop(ev); setSummerPending(false); cups.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
 
     installSummerNavigationGuard();
 
@@ -288,9 +324,9 @@ export function installChampionshipPreview(): void {
       if (isSummerMode()) {
         document.body.classList.add('rc-summer-active');
         applySummerTrackFilter();
-        adaptCharacterScreenForSummer();
         adaptResults();
       }
+      if (isSummerPending()) adaptCharacterScreenForSummer();
     });
     observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class'] });
 
