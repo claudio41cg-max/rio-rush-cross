@@ -1,9 +1,10 @@
 /**
  * Post-race results: compact landscape layout, victory celebration,
- * animated coin reward and three clear actions.
+ * animated coin reward and championship-aware actions.
  */
 import type { InputState, RaceStanding } from '../core/types';
 import type { RaceReward } from '../core/progress';
+import { championshipPoints, loadChampionship } from '../core/championship';
 import { events } from '../core/events';
 import { formatRaceTime, ordinal } from '../core/math';
 import { button, cssHex, el, FocusRing, TextField } from './dom';
@@ -33,6 +34,7 @@ export class ResultsScreen {
   private readonly menuButton: HTMLButtonElement;
   private visible = false;
   private rewardRaf = 0;
+  private championshipMode = false;
 
   constructor(root: HTMLElement) {
     this.rootNode = el('div', 'screen results hidden', undefined, root);
@@ -68,8 +70,11 @@ export class ResultsScreen {
     const place = player ? player.place : standings.length;
     const winnerTime = standings.length > 0 ? standings[0].finishTime : 0;
     const won = place === 1;
+    this.championshipMode = sessionStorage.getItem('rc-championship') === 'summer';
+    const stage = Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+    const cup = this.championshipMode ? loadChampionship() : null;
 
-    this.kicker.textContent = won ? 'VOCÊ VENCEU A CORRIDA' : 'CORRIDA CONCLUÍDA';
+    this.kicker.textContent = this.championshipMode ? `COPA VERÃO · CORRIDA ${stage + 1}/3` : (won ? 'VOCÊ VENCEU A CORRIDA' : 'CORRIDA CONCLUÍDA');
     this.heading.set(won ? '🏆 VITÓRIA!' : `${place}º LUGAR`);
     this.subheading.set(
       won
@@ -78,7 +83,7 @@ export class ResultsScreen {
           ? 'Pódio garantido! Excelente corrida.'
           : place <= 5
             ? 'Boa corrida. O pódio está logo ali.'
-            : 'Quase! Na próxima você chega.',
+            : 'Corrida concluída. O campeonato continua!',
     );
 
     this.panel.classList.toggle('gold', won);
@@ -90,8 +95,9 @@ export class ResultsScreen {
       const best = reward.isNewBest ? ' · NOVO RECORDE!' : '';
       this.rewardLine.style.display = '';
       this.rewardAmount.textContent = '+0 MOEDAS';
-      this.rewardMeta.textContent = `Total: ${reward.totalCoins}${best}`;
-      requestAnimationFrame(() => this.animateReward(reward.coins, reward.totalCoins, best));
+      const pts = this.championshipMode ? ` · +${championshipPoints(place)} PTS` : '';
+      this.rewardMeta.textContent = `Total: ${reward.totalCoins}${pts}${best}`;
+      requestAnimationFrame(() => this.animateReward(reward.coins, reward.totalCoins, `${pts}${best}`));
     } else {
       this.rewardAmount.textContent = '';
       this.rewardMeta.textContent = '';
@@ -106,22 +112,26 @@ export class ResultsScreen {
       el('span', 'standing-place', ordinal(s.place), row);
       const chip = el('span', 'standing-chip', undefined, row);
       chip.style.background = cssHex(s.color);
-      el('span', 'standing-name', s.name + (s.isPlayer ? '  (VOCÊ)' : ''), row);
+      const total = cup?.totals?.[s.name] ?? 0;
+      const pointsText = this.championshipMode ? ` · ${championshipPoints(s.place)} pts · total ${total}` : '';
+      el('span', 'standing-name', s.name + (s.isPlayer ? '  (VOCÊ)' : '') + pointsText, row);
       const t = s.finishTime;
-      const label =
-        !isFinite(t) || t <= 0
-          ? 'NÃO TERMINOU'
-          : i === 0
-            ? formatRaceTime(t)
-            : `+${(t - winnerTime).toFixed(3)}`;
+      const label = !isFinite(t) || t <= 0 ? 'NÃO TERMINOU' : i === 0 ? formatRaceTime(t) : `+${(t - winnerTime).toFixed(3)}`;
       el('span', 'standing-time', label, row);
     });
 
     if (won) this.spawnConfetti();
 
-    const summer = sessionStorage.getItem('rc-championship') === 'summer';
-    this.againButton.textContent = summer ? 'TENTAR DE NOVO' : 'CORRER DE NOVO';
-    this.changeButton.textContent = summer ? 'TROCAR PISTA' : 'TROCAR PISTA';
+    if (this.championshipMode) {
+      this.againButton.textContent = stage >= 2 ? 'COPA CONCLUÍDA' : 'PRÓXIMA CORRIDA';
+      this.changeButton.style.display = 'none';
+      this.changeButton.disabled = true;
+    } else {
+      this.againButton.textContent = 'CORRER DE NOVO';
+      this.changeButton.textContent = 'TROCAR PISTA';
+      this.changeButton.style.display = '';
+      this.changeButton.disabled = false;
+    }
     this.menuButton.textContent = 'MENU';
 
     this.focus.set(0);
@@ -157,13 +167,14 @@ export class ResultsScreen {
   }
 
   private activate(i: number): void {
+    if (this.championshipMode && i === 1) return;
     events.emit(i === 2 ? 'ui:back' : 'ui:select', {});
     if (i === 0) this.onRaceAgain?.();
     else if (i === 1) this.onChangeTrack?.();
     else this.onMainMenu?.();
   }
 
-  private animateReward(coins: number, totalCoins: number, best: string): void {
+  private animateReward(coins: number, totalCoins: number, suffix: string): void {
     const start = performance.now();
     const target = Math.max(0, Math.round(coins));
     const tick = (now: number): void => {
@@ -175,7 +186,7 @@ export class ResultsScreen {
         this.rewardRaf = requestAnimationFrame(tick);
       } else {
         this.rewardAmount.textContent = `+${target} MOEDAS`;
-        this.rewardMeta.textContent = `Total: ${totalCoins}${best}`;
+        this.rewardMeta.textContent = `Total: ${totalCoins}${suffix}`;
         this.rewardRaf = 0;
       }
     };
