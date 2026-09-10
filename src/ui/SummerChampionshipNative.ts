@@ -1,4 +1,5 @@
 const SUMMER_IDS = new Set(['summer_beach', 'summer_sunset', 'summer_tropical']);
+const SUMMER_NAMES = new Set(['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL']);
 
 type MenuRuntime = {
   goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void;
@@ -23,33 +24,65 @@ function openCharacterSelect(): void {
   if (m?.goTo) m.goTo('characterSelect', true);
 }
 
+function cardName(card: HTMLElement): string {
+  return card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
+}
+
 function enforceSummerTracks(): void {
   if (!inSummer()) return;
-  const m = menu();
-  const panel = document.querySelector<HTMLElement>('.panel-tracks.active');
-  if (!m || !panel) return;
 
+  document.body.classList.add('rc-summer-active');
+  const panel = document.querySelector<HTMLElement>('.panel-tracks');
+  if (!panel) return;
+
+  const m = menu();
+  const tracks = m?.tracks ?? [];
   const cards = Array.from(panel.querySelectorAll<HTMLElement>('.track-card'));
-  const tracks = m.tracks ?? [];
-  let first = -1;
+  let firstSummerIndex = -1;
 
   cards.forEach((card, index) => {
-    const allowed = SUMMER_IDS.has(tracks[index]?.id ?? '');
-    card.hidden = !allowed;
-    card.style.display = allowed ? '' : 'none';
-    if (allowed && first < 0) first = index;
+    const allowedById = SUMMER_IDS.has(tracks[index]?.id ?? '');
+    const allowedByName = SUMMER_NAMES.has(cardName(card));
+    const allowed = allowedById || allowedByName;
+
+    if (allowed) {
+      card.hidden = false;
+      card.removeAttribute('aria-hidden');
+      card.style.removeProperty('display');
+      card.style.removeProperty('pointer-events');
+      if (firstSummerIndex < 0) firstSummerIndex = index;
+    } else {
+      card.hidden = true;
+      card.setAttribute('aria-hidden', 'true');
+      card.style.setProperty('display', 'none', 'important');
+      card.style.setProperty('pointer-events', 'none', 'important');
+    }
   });
 
-  if (first >= 0) {
+  if (m && firstSummerIndex >= 0) {
     const selected = typeof m.trackIndex === 'number' ? m.trackIndex : -1;
-    if (!SUMMER_IDS.has(tracks[selected]?.id ?? '')) {
+    const selectedTrack = tracks[selected];
+    const selectedCard = cards[selected];
+    const selectedIsSummer =
+      SUMMER_IDS.has(selectedTrack?.id ?? '') ||
+      (!!selectedCard && SUMMER_NAMES.has(cardName(selectedCard)));
+
+    if (!selectedIsSummer) {
       m.trackRow = 0;
-      m.setTrack?.(first, false);
+      m.setTrack?.(firstSummerIndex, false);
     }
   }
 
   const title = panel.querySelector<HTMLElement>('.panel-title');
   if (title) title.textContent = 'COPA VERÃO · ESCOLHA A CORRIDA';
+}
+
+function scheduleEnforce(): void {
+  if (!inSummer()) return;
+  requestAnimationFrame(enforceSummerTracks);
+  window.setTimeout(enforceSummerTracks, 40);
+  window.setTimeout(enforceSummerTracks, 120);
+  window.setTimeout(enforceSummerTracks, 300);
 }
 
 export function installSummerChampionshipNative(): void {
@@ -68,16 +101,32 @@ export function installSummerChampionshipNative(): void {
     document.querySelector<HTMLElement>('.rc-summer-cup')?.classList.add('hidden');
 
     requestAnimationFrame(openCharacterSelect);
+    scheduleEnforce();
+  }, true);
+
+  document.addEventListener('click', (event) => {
+    if (!inSummer()) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest('.char-card') ||
+      target?.closest('.panel-chars .actions') ||
+      target?.closest('.panel-tracks')
+    ) {
+      scheduleEnforce();
+    }
   }, true);
 
   const observer = new MutationObserver(() => {
-    if (inSummer()) requestAnimationFrame(enforceSummerTracks);
+    if (inSummer()) scheduleEnforce();
   });
-  observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class'] });
+  observer.observe(document.body, {
+    attributes: true,
+    childList: true,
+    subtree: true,
+    attributeFilter: ['class'],
+  });
 
-  document.addEventListener('click', () => {
-    if (inSummer()) requestAnimationFrame(enforceSummerTracks);
-  }, true);
+  scheduleEnforce();
 }
 
 installSummerChampionshipNative();
