@@ -19,85 +19,56 @@ function stop(ev: Event): void {
 function isSummerMode(): boolean {
   return sessionStorage.getItem('rc-championship') === 'summer';
 }
+
 function summerIndex(): number {
   const n = Number(sessionStorage.getItem('rc-summer-race') ?? '0');
   return Math.max(0, Math.min(2, Number.isFinite(n) ? Math.floor(n) : 0));
 }
+
 function setSummerIndex(i: number): void {
   sessionStorage.setItem('rc-summer-race', String(Math.max(0, Math.min(2, i))));
 }
+
 function setSummerMode(enabled: boolean): void {
   document.body.classList.toggle('rc-summer-active', enabled);
-  if (enabled) sessionStorage.setItem('rc-championship', 'summer');
-  else {
+  if (enabled) {
+    sessionStorage.setItem('rc-championship', 'summer');
+  } else {
     sessionStorage.removeItem('rc-championship');
     sessionStorage.removeItem('rc-summer-race');
-    sessionStorage.removeItem('rc-summer-auto-resume');
   }
 }
 
 function trackCards(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('.panel-tracks .track-card'));
 }
-function findSummerCard(index: number): HTMLElement | null {
-  return trackCards().find((card) => {
-    const name = card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
-    return name === SUMMER_TRACK_NAMES[index];
-  }) ?? null;
+
+function trackName(card: HTMLElement): string {
+  return card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
 }
 
 function applySummerTrackFilter(): void {
   if (!isSummerMode()) return;
-  const index = summerIndex();
-  const cards = trackCards();
-  for (const card of cards) {
-    const name = card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
-    card.style.display = name === SUMMER_TRACK_NAMES[index] ? '' : 'none';
+  for (const card of trackCards()) {
+    card.style.display = SUMMER_TRACK_NAMES.includes(trackName(card)) ? '' : 'none';
   }
   const title = document.querySelector<HTMLElement>('.panel-tracks .panel-title');
-  if (title) title.textContent = `COPA VERÃO · CORRIDA ${index + 1} DE 3`;
+  if (title) title.textContent = 'COPA VERÃO · ESCOLHA A CORRIDA';
 }
 
 function clearTrackFilter(): void {
-  trackCards().forEach((card) => (card.style.display = ''));
+  for (const card of trackCards()) card.style.display = '';
   const title = document.querySelector<HTMLElement>('.panel-tracks .panel-title');
   if (title) title.textContent = 'ESCOLHA UM CIRCUITO';
 }
 
-let startingSummerRace = false;
-function autoStartSummerRace(): void {
-  if (!isSummerMode() || startingSummerRace) return;
-  const panel = document.querySelector<HTMLElement>('.panel-tracks.active');
-  if (!panel) return;
-  const target = findSummerCard(summerIndex());
-  const start = Array.from(panel.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.includes('INICIAR CORRIDA'));
-  if (!target || !start) return;
-  startingSummerRace = true;
-  applySummerTrackFilter();
-  target.click();
-  setTimeout(() => {
-    start.click();
-    startingSummerRace = false;
-  }, 120);
-}
-
-function resumeSummerFromMenu(): void {
-  if (!isSummerMode() || sessionStorage.getItem('rc-summer-auto-resume') !== '1') return;
-  const titlePanel = document.querySelector<HTMLElement>('.panel-title-screen.active');
-  if (titlePanel) {
-    titlePanel.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    return;
-  }
-  const charPanel = document.querySelector<HTMLElement>('.panel-chars.active');
-  if (charPanel) {
-    const next = Array.from(charPanel.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.includes('CONTINUAR'));
-    if (next) next.click();
-    return;
-  }
-  if (document.querySelector('.panel-tracks.active')) {
-    sessionStorage.removeItem('rc-summer-auto-resume');
-    autoStartSummerRace();
-  }
+function rememberSelectedSummerTrack(ev: Event): void {
+  if (!isSummerMode()) return;
+  const target = ev.target as HTMLElement | null;
+  const card = target?.closest<HTMLElement>('.panel-tracks .track-card');
+  if (!card) return;
+  const idx = SUMMER_TRACK_NAMES.indexOf(trackName(card));
+  if (idx >= 0) setSummerIndex(idx);
 }
 
 function adaptResults(): void {
@@ -107,14 +78,15 @@ function adaptResults(): void {
   const buttons = Array.from(results.querySelectorAll<HTMLButtonElement>('.actions button'));
   if (buttons.length < 3) return;
   const index = summerIndex();
-  buttons[0].textContent = index < 2 ? `PRÓXIMA CORRIDA · ${index + 2}/3` : 'FINALIZAR COPA VERÃO';
-  buttons[1].style.display = 'none';
-  buttons[2].textContent = 'SAIR DO CAMPEONATO';
+  buttons[0].textContent = 'JOGAR NOVAMENTE';
+  buttons[1].style.display = '';
+  buttons[1].textContent = 'VOLTAR À COPA VERÃO';
+  buttons[2].textContent = 'MENU PRINCIPAL';
   const kicker = results.querySelector<HTMLElement>('.panel-kicker');
   if (kicker) kicker.textContent = `COPA VERÃO · CORRIDA ${index + 1}/3`;
 }
 
-function installChampionshipResultGuard(): void {
+function installResultGuard(): void {
   document.addEventListener('click', (ev) => {
     if (!isSummerMode()) return;
     const target = ev.target as HTMLElement | null;
@@ -125,27 +97,14 @@ function installChampionshipResultGuard(): void {
     if (i === 1) {
       ev.preventDefault();
       ev.stopImmediatePropagation();
+      const menuButton = buttons[2];
+      setTimeout(() => menuButton?.click(), 0);
       return;
     }
     if (i === 2) {
       setSummerMode(false);
       clearTrackFilter();
-      return;
     }
-    if (i !== 0) return;
-
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    const race = summerIndex();
-    if (race < 2) {
-      setSummerIndex(race + 1);
-      sessionStorage.setItem('rc-summer-auto-resume', '1');
-    } else {
-      localStorage.setItem('rc-cup-summer-complete', '1');
-      setSummerMode(false);
-    }
-    const menuButton = buttons[2];
-    setTimeout(() => menuButton?.click(), 0);
   }, true);
 }
 
@@ -224,6 +183,7 @@ export function installChampionshipPreview(): void {
       el('b', '', `${i + 1}`, item);
       el('span', '', name, item);
     });
+
     const summerActions = el('div', 'rc-summer-actions', undefined, summerPanel);
     const summerBack = el('button', 'rc-cups-back', '← VOLTAR', summerActions) as HTMLButtonElement;
     const summerStart = el('button', 'rc-mode-btn rc-mode-primary rc-summer-start', 'COMEÇAR COPA VERÃO', summerActions) as HTMLButtonElement;
@@ -237,8 +197,7 @@ export function installChampionshipPreview(): void {
       const txt = el('div', 'rc-cup-copy', undefined, card);
       el('strong', '', cup.name, txt);
       el('span', '', cup.sub, txt);
-      const complete = cup.cls === 'summer' && localStorage.getItem('rc-cup-summer-complete') === '1';
-      el('small', cup.state === 'ABERTA' ? 'open' : '', complete ? 'CONCLUÍDA' : cup.state, txt);
+      el('small', cup.state === 'ABERTA' ? 'open' : '', cup.state, txt);
       card.addEventListener('click', (ev) => {
         stop(ev);
         if (cup.state !== 'ABERTA') return;
@@ -246,9 +205,9 @@ export function installChampionshipPreview(): void {
         summerPanel.classList.remove('hidden');
       });
     }
+
     const back = el('button', 'rc-cups-back', '← VOLTAR', cups) as HTMLButtonElement;
     back.type = 'button';
-
     const settingsPanel = createSettingsPanel(title);
     const settingsBack = settingsPanel.querySelector<HTMLButtonElement>('.rc-cups-back');
 
@@ -257,60 +216,69 @@ export function installChampionshipPreview(): void {
       modeMenu.classList.add('hidden');
       cups.classList.remove('hidden');
     });
+
     free.addEventListener('click', (ev) => {
       stop(ev);
       setSummerMode(false);
       clearTrackFilter();
-      title.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      requestAnimationFrame(() => title.click());
     });
+
     summerBack.addEventListener('click', (ev) => {
       stop(ev);
       summerPanel.classList.add('hidden');
       cups.classList.remove('hidden');
     });
+
     summerStart.addEventListener('click', (ev) => {
       stop(ev);
       setSummerMode(true);
-      setSummerIndex(0);
-      sessionStorage.removeItem('rc-summer-auto-resume');
+      sessionStorage.removeItem('rc-summer-race');
       summerPanel.classList.add('hidden');
-      title.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      requestAnimationFrame(() => title.click());
     });
+
     garage.addEventListener('click', (ev) => {
       stop(ev);
       const old = garage.textContent;
       garage.textContent = 'EM BREVE';
       setTimeout(() => (garage.textContent = old), 900);
     });
+
     settings.addEventListener('click', (ev) => {
       stop(ev);
       modeMenu.classList.add('hidden');
       settingsPanel.classList.remove('hidden');
     });
+
     settingsBack?.addEventListener('click', (ev) => {
       stop(ev);
       settingsPanel.classList.add('hidden');
       modeMenu.classList.remove('hidden');
     });
+
     back.addEventListener('click', (ev) => {
       stop(ev);
       cups.classList.add('hidden');
       modeMenu.classList.remove('hidden');
     });
 
-    installChampionshipResultGuard();
+    document.addEventListener('click', rememberSelectedSummerTrack, true);
+    installResultGuard();
+
     const observer = new MutationObserver(() => {
       if (isSummerMode()) {
         document.body.classList.add('rc-summer-active');
-        if (document.querySelector('.panel-tracks.active')) {
-          applySummerTrackFilter();
-          if (sessionStorage.getItem('rc-summer-auto-resume') !== '1') autoStartSummerRace();
-        }
+        if (document.querySelector('.panel-tracks.active')) applySummerTrackFilter();
         adaptResults();
-        resumeSummerFromMenu();
       }
     });
-    observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class'] });
+    observer.observe(document.body, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ['class'],
+    });
 
     const oldPrompt = title.querySelector<HTMLElement>('.press-start');
     if (oldPrompt) oldPrompt.style.display = 'none';
