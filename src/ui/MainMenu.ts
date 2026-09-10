@@ -25,6 +25,7 @@ const STAT_KEYS: readonly { key: keyof CharacterDef['stats']; label: string }[] 
 ];
 const WEIGHT_LABEL: Record<CharacterDef['weightClass'], string> = { light: 'LEVE', medium: 'MÉDIO', heavy: 'PESADO' };
 const CHAR_COLUMNS = 4;
+const SUMMER_TRACK_IDS = new Set(['summer_beach', 'summer_sunset', 'summer_tropical']);
 
 export class MainMenu {
   onStart: ((settings: RaceSettings) => void) | null = null;
@@ -51,6 +52,13 @@ export class MainMenu {
   private readonly startButton: HTMLElement;
   /** 0 = track cards row, 1 = difficulty row, 2 = start button. */
   private trackRow = 0;
+
+  private readonly onStartSummerCup = (): void => {
+    sessionStorage.setItem('rc-championship', 'summer');
+    sessionStorage.removeItem('rc-summer-race');
+    document.body.classList.add('rc-summer-active');
+    this.goTo('characterSelect', true);
+  };
 
   constructor(
     root: HTMLElement,
@@ -168,6 +176,7 @@ export class MainMenu {
     trActions.appendChild(this.startButton);
 
     this.panels = { title, characterSelect: chars, trackSelect: tr };
+    window.addEventListener('rc:start-summer-cup', this.onStartSummerCup);
     this.setCharacter(0);
     this.setTrack(0);
     this.setDifficulty(1);
@@ -197,6 +206,7 @@ export class MainMenu {
   }
 
   dispose(): void {
+    window.removeEventListener('rc:start-summer-cup', this.onStartSummerCup);
     this.rootNode.remove();
   }
 
@@ -229,8 +239,10 @@ export class MainMenu {
         } else if (input.menuLeft || input.menuRight) {
           const dir = input.menuRight ? 1 : -1;
           if (this.trackRow === 0) {
-            const n = this.tracks.length;
-            this.setTrack((this.trackIndex + dir + n) % n, true);
+            const allowed = this.allowedTrackIndices();
+            const pos = Math.max(0, allowed.indexOf(this.trackIndex));
+            const next = (pos + dir + allowed.length) % allowed.length;
+            this.setTrack(allowed[next], true);
           } else if (this.trackRow === 1) {
             this.setDifficulty((this.difficultyIndex + dir + 3) % 3, true);
           } else {
@@ -245,6 +257,37 @@ export class MainMenu {
   }
 
   // ----------------------------------------------------------------- private
+
+  private isSummerChampionship(): boolean {
+    return sessionStorage.getItem('rc-championship') === 'summer';
+  }
+
+  private allowedTrackIndices(): number[] {
+    if (!this.isSummerChampionship()) return this.tracks.map((_, i) => i);
+    const allowed: number[] = [];
+    this.tracks.forEach((track, i) => {
+      if (SUMMER_TRACK_IDS.has(track.id)) allowed.push(i);
+    });
+    return allowed.length > 0 ? allowed : this.tracks.map((_, i) => i);
+  }
+
+  private applyTrackMode(): void {
+    const summer = this.isSummerChampionship();
+    const allowed = new Set(this.allowedTrackIndices());
+    this.trackCards.forEach((card, i) => {
+      const show = !summer || allowed.has(i);
+      card.hidden = !show;
+      card.style.display = show ? '' : 'none';
+    });
+
+    const title = this.panels.trackSelect.querySelector<HTMLElement>('.panel-title');
+    if (title) title.textContent = summer ? 'COPA VERÃO · ESCOLHA A CORRIDA' : 'ESCOLHA UM CIRCUITO';
+
+    if (summer && !allowed.has(this.trackIndex)) {
+      const first = this.allowedTrackIndices()[0];
+      if (first !== undefined) this.trackIndex = first;
+    }
+  }
 
   private goTo(panel: MenuPanel, sound: boolean): void {
     if (sound) {
@@ -271,6 +314,7 @@ export class MainMenu {
     }
     if (this.panel === 'trackSelect') {
       this.trackRow = 0;
+      this.applyTrackMode();
       this.refreshTrackFocus();
     }
   }
@@ -294,6 +338,7 @@ export class MainMenu {
 
   private setTrack(i: number, sound = false): void {
     if (i < 0 || i >= this.tracks.length) return;
+    if (this.isSummerChampionship() && !SUMMER_TRACK_IDS.has(this.tracks[i].id)) return;
     const changed = i !== this.trackIndex;
     this.trackIndex = i;
     this.trackCards.forEach((c, k) => c.classList.toggle('selected', k === i));
@@ -322,6 +367,7 @@ export class MainMenu {
     const track = this.tracks[this.trackIndex];
     const character = this.characters[this.charIndex];
     if (!track || !character) return;
+    if (this.isSummerChampionship() && !SUMMER_TRACK_IDS.has(track.id)) return;
     events.emit('ui:select', {});
     this.onStart?.({
       characterId: character.id,
