@@ -83,6 +83,36 @@ export class AudioEngine implements IAudioEngine {
     }));
     u.push(events.on('race:start', () => this.crowd?.cheerBurst(1)));
     u.push(events.on('race:finish', (e) => { if (e.isPlayer) this.crowd?.cheerBurst(1); }));
+
+    // Settings bridge for the five selectable race songs.
+    // The settings panel stops click propagation, so capture first and preview
+    // after its own handler stores the chosen song in localStorage.
+    const onSettingsClick = (ev: Event): void => {
+      const target = ev.target as HTMLElement | null;
+      if (target?.closest('.rc-music-choice')) {
+        window.setTimeout(() => {
+          if (!this.disposed && this._ready && this.music) this.music.previewRaceSong();
+        }, 0);
+        return;
+      }
+      if (target?.closest('.rc-settings .rc-cups-back')) {
+        window.setTimeout(() => {
+          if (this.disposed || !this._ready || !this.music) return;
+          if (this.pendingTrack === 'none') this.music.stop();
+          else this.music.play(this.pendingTrack, true);
+        }, 0);
+      }
+    };
+    const onSettingsInput = (ev: Event): void => {
+      const input = ev.target as HTMLInputElement | null;
+      if (!input || input.type !== 'range' || !input.closest('.rc-settings')) return;
+      const level = Math.max(0.05, Math.min(1, Number(input.value) / 100));
+      if (Number.isFinite(level)) this.music?.setMusicVolume(level);
+    };
+    document.addEventListener('click', onSettingsClick, true);
+    document.addEventListener('input', onSettingsInput, true);
+    u.push(() => document.removeEventListener('click', onSettingsClick, true));
+    u.push(() => document.removeEventListener('input', onSettingsInput, true));
   }
 
   get ready(): boolean {
@@ -216,7 +246,6 @@ export class AudioEngine implements IAudioEngine {
     this.ctx = null;
     this._ready = false;
     if (ctx) {
-      // Let the short fade-outs finish before the context goes away.
       const close = (): void => {
         ctx.close().catch(() => undefined);
       };
@@ -244,7 +273,6 @@ export class AudioEngine implements IAudioEngine {
     const now = ctx.currentTime;
     this.frame++;
 
-    // --- listener from the camera -------------------------------------------
     const e = camera.matrixWorld.elements;
     this.camPos.set(e[12], e[13], e[14]);
     this.camFwd.set(-e[8], -e[9], -e[10]).normalize();
@@ -264,7 +292,6 @@ export class AudioEngine implements IAudioEngine {
     this.sfx.karts = karts;
     this.sfx.playerKartId = playerKartId;
 
-    // --- engines ---------------------------------------------------------------
     const engines = this.engines;
     let playerKart: IKart | null = null;
     for (let i = 0; i < karts.length; i++) {
@@ -287,7 +314,6 @@ export class AudioEngine implements IAudioEngine {
       slot.distance = st.position.distanceTo(this.camPos);
       slot.voice.update(dt, st, kart.input.throttle, kart.topSpeed());
     }
-    // Tear down voices for karts that are gone (race disposed, menu, etc.).
     for (let i = 0; i < engines.length; i++) {
       const slot = engines[i];
       if (slot && slot.lastSeen !== this.frame) {
@@ -302,7 +328,6 @@ export class AudioEngine implements IAudioEngine {
       this.assignVoiceTiers();
     }
 
-    // --- star jingle + music ducking ------------------------------------------
     let starAudible = false;
     const flags = this.starFlags;
     for (let id = 0; id < flags.length; id++) {
@@ -331,13 +356,11 @@ export class AudioEngine implements IAudioEngine {
       this.lightningDuck -= dt;
       duckDb = Math.min(duckDb, LIGHTNING_DUCK_DB);
     }
-    // Only touch the automation timeline when the target actually changes.
     if (duckDb !== this.lastDuckDb && this.musicDuck) {
       this.lastDuckDb = duckDb;
       this.musicDuck.gain.setTargetAtTime(dbToGain(duckDb), now, 0.12);
     }
 
-    // --- crowd -----------------------------------------------------------------
     this.crowd?.update(dt, playerKart ? playerKart.state.trackT : null);
   }
 
@@ -352,8 +375,6 @@ export class AudioEngine implements IAudioEngine {
         richLeft--;
       }
     }
-    // Selection by distance without allocating: repeatedly pick the nearest
-    // unassigned slot, temporarily flipping its distance negative as a marker.
     let picked = 0;
     while (picked < richLeft) {
       let best: VoiceSlot | null = null;
