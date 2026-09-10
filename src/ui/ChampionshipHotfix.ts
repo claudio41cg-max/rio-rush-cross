@@ -76,6 +76,33 @@ function cleanConfirmationCopy(): void {
   confirm.querySelector<HTMLElement>('.rc-confirm-info small')?.remove();
 }
 
+function installLoadingWatchdog(): void {
+  let fullSince = 0;
+  const tick = (now: number) => {
+    const game = (window as unknown as { __turboKartRush?: unknown }).__turboKartRush as any;
+    if (game?.currentState === 'loading' && game?.race && typeof game?.enterCountdown === 'function') {
+      const progress = Number(game.loadingProgress ?? 0);
+      if (progress >= 0.98) {
+        if (!fullSince) fullSince = now;
+        // Some Android devices finish building the race but throw during the
+        // loading-only warm render. The normal transition then never executes.
+        // If the race is already built and the bar has stayed full briefly,
+        // enter the countdown directly. No vehicle physics/mechanics are changed.
+        if (now - fullSince > 700) {
+          try { game.enterCountdown(); } catch (err) { console.warn('[RC Rush] loading watchdog failed', err); }
+          fullSince = 0;
+        }
+      } else {
+        fullSince = 0;
+      }
+    } else {
+      fullSince = 0;
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 function install(): void {
   const style = document.createElement('style');
   style.textContent = `
@@ -127,6 +154,7 @@ function install(): void {
   };
   new MutationObserver(refresh).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
   refresh();
+  installLoadingWatchdog();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
