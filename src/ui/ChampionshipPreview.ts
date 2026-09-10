@@ -204,10 +204,8 @@ export function installChampionshipPreview(): void {
     summerBack.addEventListener('click', (ev) => { stop(ev); summerPanel.classList.add('hidden'); cups.classList.remove('hidden'); });
     summerStart.addEventListener('click', (ev) => {
       stop(ev);
-      setSummerMode(true);
-      sessionStorage.setItem('rc-summer-race', '0');
       summerPanel.classList.add('hidden');
-      requestAnimationFrame(() => title.click());
+      window.dispatchEvent(new Event('rc:start-summer-cup'));
     });
     garage.addEventListener('click', (ev) => {
       stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => (garage.textContent = old), 900);
