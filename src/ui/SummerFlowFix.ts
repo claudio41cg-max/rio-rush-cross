@@ -33,11 +33,22 @@ function clearSummerState(): void {
   document.body.classList.remove('rc-summer-active');
 }
 
-function showCharacterSelection(): void {
-  const title = document.querySelector<HTMLElement>('.panel-title-screen');
+function showCharacterSelection(stage: number): void {
   const summerPanel = document.querySelector<HTMLElement>('.rc-summer-cup');
   summerPanel?.classList.add('hidden');
-  requestAnimationFrame(() => title?.click());
+
+  // Use MainMenu's own championship transition instead of synthesizing a click
+  // on the title screen. The synthetic title click could be swallowed by the
+  // Copa overlay on mobile Chrome and leave the screen apparently frozen.
+  window.dispatchEvent(new Event('rc:start-summer-cup'));
+
+  // MainMenu intentionally clears this key when entering the cup, so restore
+  // the race selected by the player immediately after that transition.
+  sessionStorage.setItem('rc-summer-race', String(stage));
+  sessionStorage.setItem('rc-summer-pending', '1');
+  sessionStorage.setItem('rc-championship', 'summer');
+  document.body.classList.add('rc-summer-active');
+
   requestAnimationFrame(() => {
     const panel = document.querySelector<HTMLElement>('.panel-chars.active');
     if (!panel) return;
@@ -90,7 +101,7 @@ export function installSummerFlowFix(): void {
       clearSummerState();
       sessionStorage.setItem('rc-summer-race', String(index));
       sessionStorage.setItem('rc-summer-pending', '1');
-      showCharacterSelection();
+      showCharacterSelection(index);
       return;
     }
 
