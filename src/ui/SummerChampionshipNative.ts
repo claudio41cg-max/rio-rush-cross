@@ -79,3 +79,5 @@ export function installSummerChampionshipNative(): void {
     if (inSummer()) requestAnimationFrame(enforceSummerTracks);
   }, true);
 }
+
+installSummerChampionshipNative();
