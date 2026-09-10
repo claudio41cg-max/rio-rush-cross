@@ -2,11 +2,13 @@
  * Bootstrap: WebGL2 detection, global error handling, then hand over to Game.
  */
 import './mobile-overrides.css';
+import './championship-preview.css';
 import './webgl-recovery.css';
 import { GAME_TITLE } from './core/constants';
 import { Game } from './game/Game';
 import { el } from './ui/dom';
 import { showToast } from './ui/toast';
+import { installChampionshipPreview } from './ui/ChampionshipPreview';
 import { installWebGLRecovery } from './ui/WebGLRecovery';
 
 let activeGame: Game | null = null;
@@ -68,6 +70,7 @@ function boot(): void {
     activeGame = game;
     installWebGLRecovery();
     game.start();
+    installChampionshipPreview();
     (window as unknown as { __turboKartRush?: Game }).__turboKartRush = game;
   } catch (err) {
     console.error('[main] failed to start game', err);
