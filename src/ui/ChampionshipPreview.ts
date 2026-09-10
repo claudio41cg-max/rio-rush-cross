@@ -1,7 +1,6 @@
 import { el } from './dom';
 
-const SUMMER_TRACK_NAMES = ['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL'];
-const SUMMER_TRACK_IDS = ['summer_beach', 'summer_sunset', 'summer_tropical'];
+const SUMMER_TRACK_IDS = ['summer_beach', 'summer_sunset', 'summer_tropical'] as const;
 const RACE_SONGS = ['SUMMER DRIVE', 'BEACH RUNNERS', 'SUNSET RACE', 'TROPICAL VIBES', 'NIGHT SPEED'];
 
 const CUPS = [
@@ -15,192 +14,31 @@ const CUPS = [
 type MenuRuntime = {
   tracks?: Array<{ id?: string }>;
   setTrack?: (index: number, sound?: boolean) => void;
-  setCharacter?: (index: number, sound?: boolean) => void;
-  start?: () => void;
   goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void;
 };
-
 type GameRuntime = { mainMenu?: MenuRuntime };
 
-function runtimeMenu(): MenuRuntime | null {
+function menu(): MenuRuntime | null {
   return ((window as unknown as { __turboKartRush?: GameRuntime }).__turboKartRush?.mainMenu) ?? null;
 }
-
-function stop(ev: Event): void {
-  ev.preventDefault();
-  ev.stopPropagation();
-}
-
-function isSummerMode(): boolean {
-  return sessionStorage.getItem('rc-championship') === 'summer';
-}
-
-function isSummerPending(): boolean {
-  return sessionStorage.getItem('rc-summer-pending') === '1';
-}
-
-function setSummerPending(enabled: boolean): void {
-  if (enabled) sessionStorage.setItem('rc-summer-pending', '1');
-  else sessionStorage.removeItem('rc-summer-pending');
-}
-
-function summerIndex(): number {
-  const n = Number(sessionStorage.getItem('rc-summer-race') ?? '0');
-  return Math.max(0, Math.min(2, Number.isFinite(n) ? Math.floor(n) : 0));
-}
-
-function setSummerIndex(i: number): void {
-  sessionStorage.setItem('rc-summer-race', String(Math.max(0, Math.min(2, i))));
-}
-
-function setSummerMode(enabled: boolean): void {
+function stop(ev: Event): void { ev.preventDefault(); ev.stopPropagation(); }
+function setSummer(enabled: boolean): void {
   document.body.classList.toggle('rc-summer-active', enabled);
-  if (enabled) {
-    sessionStorage.setItem('rc-championship', 'summer');
-  } else {
+  if (enabled) sessionStorage.setItem('rc-championship', 'summer');
+  else {
     sessionStorage.removeItem('rc-championship');
     sessionStorage.removeItem('rc-summer-race');
   }
 }
-
-function cancelSummerFlow(): void {
-  setSummerPending(false);
-  setSummerMode(false);
-  clearTrackFilter();
-}
-
-function selectedSummerTrackRuntimeIndex(): number {
-  const menu = runtimeMenu();
-  const wanted = SUMMER_TRACK_IDS[summerIndex()];
-  const idx = menu?.tracks?.findIndex((track) => track.id === wanted) ?? -1;
-  return idx >= 0 ? idx : summerIndex();
-}
-
-function startSelectedSummerRace(): void {
-  const menu = runtimeMenu();
-  if (!menu) return;
-  const idx = selectedSummerTrackRuntimeIndex();
-  setSummerPending(false);
-  setSummerMode(true);
-  menu.setTrack?.(idx, false);
-  requestAnimationFrame(() => menu.start?.());
-}
-
-function openSummerCharacterSelect(): void {
-  const menu = runtimeMenu();
-  if (menu?.goTo) {
-    menu.goTo('characterSelect', true);
-    requestAnimationFrame(adaptCharacterScreenForSummer);
-    return;
-  }
-
-  // Fallback seguro: usa o clique do título apenas se o runtime não estiver exposto.
-  const title = document.querySelector<HTMLElement>('.panel-title-screen');
-  requestAnimationFrame(() => title?.click());
-  requestAnimationFrame(adaptCharacterScreenForSummer);
-}
-
-function trackCards(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>('.panel-tracks .track-card'));
-}
-
-function trackName(card: HTMLElement): string {
-  return card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
-}
-
-function applySummerTrackFilter(): void {
-  if (!isSummerMode()) return;
-  for (const card of trackCards()) {
-    const allowed = SUMMER_TRACK_NAMES.includes(trackName(card));
-    card.hidden = !allowed;
-    card.style.setProperty('display', allowed ? '' : 'none', allowed ? '' : 'important');
-  }
-}
-
-function clearTrackFilter(): void {
-  for (const card of trackCards()) {
-    card.hidden = false;
-    card.style.removeProperty('display');
-  }
-  const title = document.querySelector<HTMLElement>('.panel-tracks .panel-title');
-  if (title) title.textContent = 'ESCOLHA UM CIRCUITO';
-}
-
-function adaptCharacterScreenForSummer(): void {
-  if (!isSummerPending() && !isSummerMode()) return;
-  const panel = document.querySelector<HTMLElement>('.panel-chars.active');
-  if (!panel) return;
-  const kicker = panel.querySelector<HTMLElement>('.panel-kicker');
-  if (kicker) kicker.textContent = 'COPA VERÃO · CARRINHO';
-  const buttons = Array.from(panel.querySelectorAll<HTMLButtonElement>('.actions button'));
-  if (buttons[1]) buttons[1].textContent = 'COMEÇAR COPA VERÃO';
-}
-
-function adaptResults(): void {
-  if (!isSummerMode()) return;
-  const results = document.querySelector<HTMLElement>('.results:not(.hidden)');
-  if (!results) return;
-  const buttons = Array.from(results.querySelectorAll<HTMLButtonElement>('.actions button'));
-  if (buttons.length < 3) return;
-  const index = summerIndex();
-  buttons[0].textContent = 'TENTAR DE NOVO';
-  buttons[1].style.display = '';
-  buttons[1].textContent = 'VOLTAR À COPA VERÃO';
-  buttons[2].textContent = 'MENU';
-  const kicker = results.querySelector<HTMLElement>('.panel-kicker');
-  if (kicker) kicker.textContent = `COPA VERÃO · CORRIDA ${index + 1}/3`;
-}
-
-function installSummerNavigationGuard(): void {
-  document.addEventListener('click', (ev) => {
-    if (!isSummerPending() && !isSummerMode()) return;
-    const target = ev.target as HTMLElement | null;
-    if (!target) return;
-
-    const charCard = target.closest<HTMLElement>('.panel-chars.active .char-card');
-    if (charCard && isSummerPending()) {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      const cards = Array.from(document.querySelectorAll<HTMLElement>('.panel-chars .char-card'));
-      const idx = cards.indexOf(charCard);
-      if (idx >= 0) runtimeMenu()?.setCharacter?.(idx, true);
-      adaptCharacterScreenForSummer();
-      return;
-    }
-
-    const charButton = target.closest<HTMLButtonElement>('.panel-chars.active .actions button');
-    if (charButton && isSummerPending()) {
-      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.panel-chars.active .actions button'));
-      const idx = buttons.indexOf(charButton);
-      if (idx === 1) {
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        startSelectedSummerRace();
-        return;
-      }
-      if (idx === 0) {
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        cancelSummerFlow();
-        runtimeMenu()?.goTo?.('title', true);
-        return;
-      }
-    }
-
-    const resultButton = target.closest<HTMLButtonElement>('.results .actions button');
-    if (resultButton && isSummerMode()) {
-      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.results .actions button'));
-      const i = buttons.indexOf(resultButton);
-      if (i === 1) {
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        cancelSummerFlow();
-        setTimeout(() => buttons[2]?.click(), 0);
-        return;
-      }
-      if (i === 2) cancelSummerFlow();
-    }
-  }, true);
+function chooseSummerTrack(index: number): void {
+  sessionStorage.setItem('rc-summer-race', String(index));
+  setSummer(true);
+  const m = menu();
+  const wanted = SUMMER_TRACK_IDS[index];
+  const runtimeIndex = m?.tracks?.findIndex((t) => t.id === wanted) ?? -1;
+  if (runtimeIndex >= 0) m?.setTrack?.(runtimeIndex, false);
+  // A partir daqui somente o MainMenu controla a navegação.
+  m?.goTo?.('characterSelect', true);
 }
 
 function createSettingsPanel(title: HTMLElement): HTMLElement {
@@ -221,15 +59,15 @@ function createSettingsPanel(title: HTMLElement): HTMLElement {
   el('div', 'rc-setting-label', 'ESCOLHER MÚSICA DA CORRIDA', panel);
   const list = el('div', 'rc-music-list', undefined, panel);
   let selected = Math.max(0, Math.min(4, Number(localStorage.getItem('rc-race-song') ?? '0')));
-  const musicButtons: HTMLButtonElement[] = [];
+  const buttons: HTMLButtonElement[] = [];
   RACE_SONGS.forEach((name, i) => {
     const b = el('button', 'rc-music-choice', `${i + 1}. ${name}`, list) as HTMLButtonElement;
     b.type = 'button'; b.classList.toggle('selected', i === selected);
     b.addEventListener('click', (ev) => {
       stop(ev); selected = i; localStorage.setItem('rc-race-song', String(i));
-      musicButtons.forEach((x, k) => x.classList.toggle('selected', k === selected));
+      buttons.forEach((x, k) => x.classList.toggle('selected', k === selected));
     });
-    musicButtons.push(b);
+    buttons.push(b);
   });
   el('div', 'rc-settings-note', 'A nova música e o volume entram na próxima corrida.', panel);
   const back = el('button', 'rc-cups-back', '← VOLTAR', panel) as HTMLButtonElement;
@@ -242,8 +80,9 @@ export function installChampionshipPreview(): void {
     const title = document.querySelector<HTMLElement>('.panel-title-screen');
     if (!title || title.querySelector('.rc-mode-menu')) return !!title;
 
-    // Limpa uma tentativa antiga interrompida ao recarregar a página.
-    setSummerPending(false);
+    // Remove estados antigos que causavam interceptação/captura de cliques.
+    sessionStorage.removeItem('rc-summer-pending');
+    setSummer(false);
 
     const modeMenu = el('div', 'rc-mode-menu', undefined, title);
     const modeTitle = el('div', 'rc-mode-title', 'ESCOLHA O MODO', modeMenu);
@@ -253,7 +92,7 @@ export function installChampionshipPreview(): void {
     const free = el('button', 'rc-mode-btn', '🏁 CORRIDA LIVRE', row) as HTMLButtonElement;
     const garage = el('button', 'rc-mode-btn', '🔧 GARAGEM', row) as HTMLButtonElement;
     const settings = el('button', 'rc-mode-btn', '⚙ CONFIGURAÇÕES', row) as HTMLButtonElement;
-    [champ, free, garage, settings].forEach((b) => (b.type = 'button'));
+    [champ, free, garage, settings].forEach((b) => b.type = 'button');
 
     const cups = el('div', 'rc-cups hidden', undefined, title);
     const head = el('div', 'rc-cups-head', undefined, cups);
@@ -268,14 +107,11 @@ export function installChampionshipPreview(): void {
     ['☀️ Praia ao Meio-Dia', '🌅 Orla do Pôr do Sol', '🌴 Costa Tropical'].forEach((name, i) => {
       const item = el('button', 'rc-summer-track', undefined, summerTracks) as HTMLButtonElement;
       item.type = 'button';
-      el('b', '', `${i + 1}`, item);
-      el('span', '', name, item);
+      el('b', '', `${i + 1}`, item); el('span', '', name, item);
       item.addEventListener('click', (ev) => {
         stop(ev);
-        setSummerIndex(i);
-        setSummerPending(true);
         summerPanel.classList.add('hidden');
-        openSummerCharacterSelect();
+        chooseSummerTrack(i);
       });
     });
     const summerActions = el('div', 'rc-summer-actions', undefined, summerPanel);
@@ -294,46 +130,20 @@ export function installChampionshipPreview(): void {
       });
     }
 
-    const back = el('button', 'rc-cups-back', '← VOLTAR', cups) as HTMLButtonElement;
-    back.type = 'button';
+    const back = el('button', 'rc-cups-back', '← VOLTAR', cups) as HTMLButtonElement; back.type = 'button';
     const settingsPanel = createSettingsPanel(title);
     const settingsBack = settingsPanel.querySelector<HTMLButtonElement>('.rc-cups-back');
 
-    champ.addEventListener('click', (ev) => {
-      stop(ev);
-      cancelSummerFlow();
-      modeMenu.classList.add('hidden');
-      cups.classList.remove('hidden');
-    });
-    free.addEventListener('click', (ev) => {
-      stop(ev); cancelSummerFlow(); requestAnimationFrame(() => title.click());
-    });
-    summerBack.addEventListener('click', (ev) => {
-      stop(ev); setSummerPending(false); summerPanel.classList.add('hidden'); cups.classList.remove('hidden');
-    });
-    garage.addEventListener('click', (ev) => {
-      stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => (garage.textContent = old), 900);
-    });
+    champ.addEventListener('click', (ev) => { stop(ev); setSummer(false); modeMenu.classList.add('hidden'); cups.classList.remove('hidden'); });
+    free.addEventListener('click', (ev) => { stop(ev); setSummer(false); requestAnimationFrame(() => title.click()); });
+    summerBack.addEventListener('click', (ev) => { stop(ev); setSummer(false); summerPanel.classList.add('hidden'); cups.classList.remove('hidden'); });
+    garage.addEventListener('click', (ev) => { stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => garage.textContent = old, 900); });
     settings.addEventListener('click', (ev) => { stop(ev); modeMenu.classList.add('hidden'); settingsPanel.classList.remove('hidden'); });
     settingsBack?.addEventListener('click', (ev) => { stop(ev); settingsPanel.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
-    back.addEventListener('click', (ev) => { stop(ev); setSummerPending(false); cups.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
+    back.addEventListener('click', (ev) => { stop(ev); setSummer(false); cups.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
 
-    installSummerNavigationGuard();
-
-    const observer = new MutationObserver(() => {
-      if (isSummerMode()) {
-        document.body.classList.add('rc-summer-active');
-        applySummerTrackFilter();
-        adaptResults();
-      }
-      if (isSummerPending()) adaptCharacterScreenForSummer();
-    });
-    observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class'] });
-
-    const oldPrompt = title.querySelector<HTMLElement>('.press-start');
-    if (oldPrompt) oldPrompt.style.display = 'none';
-    const legend = title.querySelector<HTMLElement>('.controls-legend');
-    if (legend) legend.style.display = 'none';
+    const oldPrompt = title.querySelector<HTMLElement>('.press-start'); if (oldPrompt) oldPrompt.style.display = 'none';
+    const legend = title.querySelector<HTMLElement>('.controls-legend'); if (legend) legend.style.display = 'none';
     return true;
   };
 
