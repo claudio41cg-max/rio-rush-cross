@@ -2,9 +2,15 @@
  * Post-race results: compact landscape layout, victory celebration,
  * animated coin reward and championship-aware actions.
  */
-import type { InputState, RaceStanding } from '../core/types';
+import type { InputState, RaceSettings, RaceStanding } from '../core/types';
 import type { RaceReward } from '../core/progress';
-import { championshipPoints, loadChampionship } from '../core/championship';
+import {
+  championshipPoints,
+  leaveChampionship,
+  loadChampionship,
+  nextChampionshipSettings,
+  recordChampionshipRace,
+} from '../core/championship';
 import { events } from '../core/events';
 import { formatRaceTime, ordinal } from '../core/math';
 import { button, cssHex, el, FocusRing, TextField } from './dom';
@@ -12,6 +18,16 @@ import { button, cssHex, el, FocusRing, TextField } from './dom';
 const CONFETTI_COUNT = 72;
 const CONFETTI_COLORS = ['#ffd23f', '#ff3ab8', '#37a8ff', '#7cff6b', '#ff7a2f', '#ffffff'];
 const COIN_ANIM_MS = 1100;
+
+type RuntimeGame = {
+  race?: { settings: RaceSettings } | null;
+  startRace?: (settings: RaceSettings) => void;
+  returnToMenu?: (panel: 'title' | 'characterSelect' | 'trackSelect') => void;
+};
+
+function runtimeGame(): RuntimeGame | null {
+  return ((window as unknown as { __turboKartRush?: RuntimeGame }).__turboKartRush) ?? null;
+}
 
 export class ResultsScreen {
   onRaceAgain: (() => void) | null = null;
@@ -35,6 +51,7 @@ export class ResultsScreen {
   private visible = false;
   private rewardRaf = 0;
   private championshipMode = false;
+  private championshipStage = 0;
 
   constructor(root: HTMLElement) {
     this.rootNode = el('div', 'screen results hidden', undefined, root);
@@ -71,10 +88,17 @@ export class ResultsScreen {
     const winnerTime = standings.length > 0 ? standings[0].finishTime : 0;
     const won = place === 1;
     this.championshipMode = sessionStorage.getItem('rc-championship') === 'summer';
-    const stage = Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+    this.championshipStage = Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+
+    if (this.championshipMode) {
+      const settings = runtimeGame()?.race?.settings;
+      if (settings) recordChampionshipRace(standings, settings);
+    }
     const cup = this.championshipMode ? loadChampionship() : null;
 
-    this.kicker.textContent = this.championshipMode ? `COPA VERÃO · CORRIDA ${stage + 1}/3` : (won ? 'VOCÊ VENCEU A CORRIDA' : 'CORRIDA CONCLUÍDA');
+    this.kicker.textContent = this.championshipMode
+      ? `COPA VERÃO · CORRIDA ${this.championshipStage + 1}/3`
+      : (won ? 'VOCÊ VENCEU A CORRIDA' : 'CORRIDA CONCLUÍDA');
     this.heading.set(won ? '🏆 VITÓRIA!' : `${place}º LUGAR`);
     this.subheading.set(
       won
@@ -113,7 +137,7 @@ export class ResultsScreen {
       const chip = el('span', 'standing-chip', undefined, row);
       chip.style.background = cssHex(s.color);
       const total = cup?.totals?.[s.name] ?? 0;
-      const pointsText = this.championshipMode ? ` · ${championshipPoints(s.place)} pts · total ${total}` : '';
+      const pointsText = this.championshipMode ? ` · +${championshipPoints(s.place)} pts · total ${total}` : '';
       el('span', 'standing-name', s.name + (s.isPlayer ? '  (VOCÊ)' : '') + pointsText, row);
       const t = s.finishTime;
       const label = !isFinite(t) || t <= 0 ? 'NÃO TERMINOU' : i === 0 ? formatRaceTime(t) : `+${(t - winnerTime).toFixed(3)}`;
@@ -123,7 +147,7 @@ export class ResultsScreen {
     if (won) this.spawnConfetti();
 
     if (this.championshipMode) {
-      this.againButton.textContent = stage >= 2 ? 'COPA CONCLUÍDA' : 'PRÓXIMA CORRIDA';
+      this.againButton.textContent = this.championshipStage >= 2 ? 'COPA CONCLUÍDA' : 'PRÓXIMA CORRIDA';
       this.changeButton.style.display = 'none';
       this.changeButton.disabled = true;
     } else {
@@ -169,6 +193,31 @@ export class ResultsScreen {
   private activate(i: number): void {
     if (this.championshipMode && i === 1) return;
     events.emit(i === 2 ? 'ui:back' : 'ui:select', {});
+
+    if (i === 0 && this.championshipMode) {
+      const game = runtimeGame();
+      const settings = game?.race?.settings;
+      if (this.championshipStage >= 2) {
+        leaveChampionship();
+        game?.returnToMenu?.('title');
+        return;
+      }
+      if (settings) {
+        const next = nextChampionshipSettings(settings);
+        if (next) {
+          game?.startRace?.(next);
+          return;
+        }
+      }
+      return;
+    }
+
+    if (i === 2 && this.championshipMode) {
+      leaveChampionship();
+      this.onMainMenu?.();
+      return;
+    }
+
     if (i === 0) this.onRaceAgain?.();
     else if (i === 1) this.onChangeTrack?.();
     else this.onMainMenu?.();
