@@ -8,18 +8,18 @@ import type { IKart, ITrack, SurfaceQuery } from '../core/types';
 import { events } from '../core/events';
 import { clamp, clamp01, damp, angleDelta, smoothstep, wrapAngle, lerp } from '../core/math';
 
-const CHASE_DISTANCE = 3.75;
-const CHASE_HEIGHT = 1.94;
+const CHASE_DISTANCE = 3.45;
+const CHASE_HEIGHT = 1.82;
 const LOOK_UP = 0.8;
 const LOOK_AHEAD = 2.5;
-const FOV_MIN = 68;
-const FOV_MAX = 80;
-const YAW_LAMBDA = 6;
+const FOV_MIN = 66;
+const FOV_MAX = 84;
+const YAW_LAMBDA = 7.2;
 const YAW_LAMBDA_DRIFT = 3.4;
 const YAW_LAMBDA_LOOKBACK = 9;
 /** How quickly the look-back blend (0 = ahead, 1 = behind) follows the button. */
 const LOOKBACK_BLEND_LAMBDA = 9;
-const POS_LAMBDA = 16;
+const POS_LAMBDA = 18;
 const DRIFT_OFFSET = (12 * Math.PI) / 180;
 const MIN_GROUND_CLEARANCE = 0.6;
 const MAX_ROLL = 0.045;
