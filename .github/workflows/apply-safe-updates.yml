@@ -1,4 +1,4 @@
-name: Apply safe gameplay and camera tuning
+name: Fix Copa Verao flow
 
 on:
   push:
@@ -21,44 +21,89 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-      - name: Apply tuning
+      - name: Apply Copa Verao fix
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          def patch(path, changes):
+          def replace_once(path, old, new, label):
               p = Path(path)
               s = p.read_text()
-              for old, new in changes:
-                  if old in s:
-                      s = s.replace(old, new, 1)
-                  elif new not in s:
-                      raise SystemExit(f'Anchor not found in {path}: {old}')
+              if old in s:
+                  s = s.replace(old, new, 1)
+              elif new not in s:
+                  raise SystemExit(f'Anchor not found: {label}')
               p.write_text(s)
 
-          patch('src/kart/Kart.ts', [
-              ('const ACCEL_BASE = 9.0;', 'const ACCEL_BASE = 10.2;'),
-              ('const ACCEL_APPROACH = 2.2;', 'const ACCEL_APPROACH = 2.5;'),
-              ('const BOOST_ACCEL = 45;', 'const BOOST_ACCEL = 52;'),
-              ('const BOOST_APPROACH = 7;', 'const BOOST_APPROACH = 8;'),
-              ('const BRAKE_DECEL = 16;', 'const BRAKE_DECEL = 18;'),
-              ('const STEER_RATE = 1.9;', 'const STEER_RATE = 2.15;'),
-              ('const DRIFT_STEER_RATE = 1.9;', 'const DRIFT_STEER_RATE = 2.05;'),
-              ('const HOP_VELOCITY = 4.5;', 'const HOP_VELOCITY = 4.8;'),
-              ('const HOP_DRIFT_DELAY = 0.15;', 'const HOP_DRIFT_DELAY = 0.11;'),
-              ('const DRIFT_STAGE_THRESHOLDS: readonly number[] = [1.0, 2.0, 3.2];', 'const DRIFT_STAGE_THRESHOLDS: readonly number[] = [0.85, 1.75, 2.85];'),
-              ('const DRIFT_BOOST_DURATIONS: readonly number[] = [0, 0.7, 1.2, 1.8];', 'const DRIFT_BOOST_DURATIONS: readonly number[] = [0, 0.85, 1.35, 2.05];'),
-              ('const DRIFT_BOOST_STRENGTH = 0.4;', 'const DRIFT_BOOST_STRENGTH = 0.48;'),
-          ])
+          preview = 'src/ui/ChampionshipPreview.ts'
+          old_preview = """    summerStart.addEventListener('click', (ev) => {
+      stop(ev);
+      summerPanel.classList.add('hidden');
+      window.dispatchEvent(new Event('rc:start-summer-cup'));
+    });
+"""
+          new_preview = """    summerStart.addEventListener('click', (ev) => {
+      stop(ev);
+      setSummerMode(true);
+      sessionStorage.removeItem('rc-summer-race');
+      summerPanel.classList.add('hidden');
+      requestAnimationFrame(() => title.click());
+    });
+"""
+          replace_once(preview, old_preview, new_preview, 'ChampionshipPreview summer start')
 
-          patch('src/game/FollowCamera.ts', [
-              ('const CHASE_DISTANCE = 3.75;', 'const CHASE_DISTANCE = 3.45;'),
-              ('const CHASE_HEIGHT = 1.94;', 'const CHASE_HEIGHT = 1.82;'),
-              ('const FOV_MIN = 68;', 'const FOV_MIN = 66;'),
-              ('const FOV_MAX = 80;', 'const FOV_MAX = 84;'),
-              ('const YAW_LAMBDA = 6;', 'const YAW_LAMBDA = 7.2;'),
-              ('const POS_LAMBDA = 16;', 'const POS_LAMBDA = 18;'),
-          ])
+          native = 'src/ui/SummerChampionshipNative.ts'
+          old_native = """  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    const start = target?.closest<HTMLButtonElement>('.rc-summer-start');
+    if (!start) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    sessionStorage.setItem('rc-championship', 'summer');
+    sessionStorage.removeItem('rc-summer-race');
+    document.body.classList.add('rc-summer-active');
+    document.querySelector<HTMLElement>('.rc-summer-cup')?.classList.add('hidden');
+
+    requestAnimationFrame(openCharacterSelect);
+    scheduleEnforce();
+  }, true);
+
+"""
+          replace_once(native, old_native, '', 'remove Native start interception')
+
+          bridge = 'src/ui/SummerChampionshipBridge.ts'
+          old_bridge = """// Intercepta o botão antigo antes do listener dele. Assim não existe mais clique
+// sintético nem tentativa de iniciar corrida por trás da interface.
+document.addEventListener(
+  'click',
+  (ev) => {
+    const target = ev.target as HTMLElement | null;
+    const start = target?.closest<HTMLButtonElement>('.rc-summer-start');
+    if (!start) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+
+    sessionStorage.setItem('rc-championship', 'summer');
+    sessionStorage.removeItem('rc-summer-race');
+    document.body.classList.add('rc-summer-active');
+    hideSummerPanel();
+
+    requestAnimationFrame(() => {
+      openCharacterSelect();
+    });
+  },
+  true,
+);
+
+"""
+          replace_once(bridge, old_bridge, '', 'remove Bridge start interception')
+
+          # Keep helpers harmlessly present for compatibility; they no longer own the start button.
           PY
       - name: Install dependencies
         run: npm ci
@@ -68,6 +113,6 @@ jobs:
         run: |
           git config user.name "claudio41cg-max"
           git config user.email "claudio41cg@gmail.com"
-          git add src/kart/Kart.ts src/game/FollowCamera.ts
-          git commit -m "Tune acceleration drift and chase camera" || exit 0
+          git add src/ui/ChampionshipPreview.ts src/ui/SummerChampionshipNative.ts src/ui/SummerChampionshipBridge.ts
+          git commit -m "Fix Copa Verao start flow" || exit 0
           git push
