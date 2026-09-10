@@ -1,0 +1,150 @@
+/* RC Rush — ResultsScreen B: compact landscape celebration */
+.results-panel {
+  position: relative;
+}
+
+.results-panel.results-win {
+  border-color: rgba(255, 210, 63, .72) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 210, 63, .18),
+    0 0 38px rgba(255, 177, 32, .28),
+    0 22px 60px rgba(0, 0, 0, .48) !important;
+}
+
+.results-panel.results-win::after {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 0 42deg, rgba(255,220,100,.11) 54deg, transparent 70deg 145deg, rgba(255,255,255,.08) 160deg, transparent 178deg 250deg, rgba(255,190,60,.10) 270deg, transparent 290deg);
+  animation: rc-results-rays 8s linear infinite;
+  z-index: -1;
+}
+
+.results-victory::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle at 50% 32%, rgba(255,225,90,.22), transparent 44%);
+  animation: rc-victory-flash .7s ease-out both;
+}
+
+.results-title {
+  letter-spacing: .035em !important;
+}
+.results-win .results-title {
+  color: #ffe26a !important;
+  -webkit-text-fill-color: #ffe26a !important;
+  background: none !important;
+  filter: drop-shadow(0 3px 0 rgba(120,70,0,.55)) drop-shadow(0 0 20px rgba(255,210,63,.55)) !important;
+  animation: rc-title-win .8s cubic-bezier(.2,.9,.2,1.15) both;
+}
+
+.results-sub {
+  color: rgba(255,255,255,.82) !important;
+  font-weight: 700;
+}
+
+.results-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(255,174,32,.20), rgba(255,215,80,.10));
+  border: 1px solid rgba(255,210,63,.34);
+}
+.results-reward-amount {
+  font-family: var(--display);
+  font-size: clamp(15px, 4vh, 24px);
+  letter-spacing: .05em;
+  color: #ffd94f;
+  text-shadow: 0 2px 8px rgba(0,0,0,.45);
+}
+.results-reward-meta {
+  font-size: clamp(9px, 2.3vh, 13px);
+  color: rgba(255,255,255,.75);
+  white-space: nowrap;
+}
+
+.results-actions {
+  position: relative;
+  z-index: 3;
+}
+.results-actions .btn.primary {
+  min-width: clamp(150px, 22vw, 220px) !important;
+}
+
+.results-pop {
+  animation: rc-results-pop .45s cubic-bezier(.16,1,.3,1) both !important;
+}
+
+@keyframes rc-results-pop {
+  from { opacity: 0; transform: translateY(14px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rc-title-win {
+  0% { transform: scale(.72); opacity: 0; }
+  65% { transform: scale(1.09); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes rc-victory-flash {
+  0% { opacity: 0; }
+  22% { opacity: 1; }
+  100% { opacity: .45; }
+}
+@keyframes rc-results-rays { to { transform: rotate(360deg); } }
+
+@media (orientation: landscape) and (pointer: coarse) {
+  .results-panel {
+    width: min(92vw, 820px) !important;
+    height: min(88dvh, 470px) !important;
+    padding-top: clamp(8px, 2vh, 14px) !important;
+  }
+  .results-title {
+    font-size: clamp(22px, 6.8vh, 38px) !important;
+    margin: 0 0 2px !important;
+  }
+  .results-sub {
+    font-size: clamp(10px, 2.55vh, 14px) !important;
+    margin-bottom: 2px !important;
+  }
+  .results-reward {
+    min-height: 38px;
+    padding: 5px 10px !important;
+    margin: 3px 0 4px !important;
+  }
+  .standings {
+    border-radius: 12px;
+    background: rgba(5,8,18,.20);
+  }
+  .standing-row.you {
+    outline: 1px solid rgba(55,168,255,.55);
+    background: linear-gradient(90deg, rgba(55,168,255,.16), rgba(255,255,255,.035));
+  }
+  .results-win .standing-row.you {
+    outline-color: rgba(255,210,63,.62);
+    background: linear-gradient(90deg, rgba(255,210,63,.18), rgba(255,255,255,.035));
+  }
+  .results-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+  .results-actions .btn {
+    width: 100%;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    padding: 7px 9px !important;
+  }
+}
+
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 410px) {
+  .results-panel { height: calc(100dvh - 14px) !important; }
+  .results-title { font-size: clamp(20px, 6vh, 31px) !important; }
+  .results-reward { min-height: 32px; padding: 3px 8px !important; }
+  .results-reward-amount { font-size: clamp(13px, 3.7vh, 20px); }
+  .results-actions .btn { min-height: 42px !important; font-size: clamp(9px, 2.4vh, 13px) !important; }
+}
