@@ -8,6 +8,7 @@ import './results-upgrade.css';
 import './webgl-recovery.css';
 import { GAME_TITLE } from './core/constants';
 import { events } from './core/events';
+import { CHAMPIONSHIP_DIFFICULTIES, championshipDifficultyStatus } from './core/championship';
 import { getProgress, saveProgress } from './core/progress';
 import { Game } from './game/Game';
 import { el } from './ui/dom';
@@ -51,6 +52,19 @@ function grantEarnedSummerTracks(stage: number): void {
     }
   }
   if (changed) saveProgress(progress);
+}
+
+function migrateEarnedSummerTracksFromChampionship(): void {
+  for (const difficulty of CHAMPIONSHIP_DIFFICULTIES) {
+    const status = championshipDifficultyStatus(difficulty);
+    if (status.cleared || status.completed) {
+      grantEarnedSummerTracks(SUMMER_PROGRESS_TRACK_IDS.length - 1);
+      return;
+    }
+    if (status.racesDone > 0) {
+      grantEarnedSummerTracks(Math.max(0, status.currentStage - 1));
+    }
+  }
 }
 
 function stopLiveRaceEngines(): void {
@@ -156,6 +170,7 @@ function boot(): void {
   });
 
   try {
+    migrateEarnedSummerTracksFromChampionship();
     const game = new Game(app);
     activeGame = game;
     freezeSimulationOnResults(game);
