@@ -28,28 +28,34 @@ function difficultyIndex(value: string | null): number {
   return value === 'easy' ? 0 : value === 'hard' ? 2 : 1;
 }
 
-function silenceResultsAudio(): void {
+function installResultAudioGuard(): void {
   const g = game();
-  if (!g || g.currentState !== 'results') return;
-  try {
-    if (g.audio?.update && g.camera) g.audio.update(0, [], -1, g.camera);
-    g.audio?.stopMusic?.();
-  } catch (err) {
-    console.warn('[RC Rush hotfix] falha ao silenciar resultado', err);
+  const audio = g?.audio;
+  if (!g || !audio?.update || !audio.playMusic || !audio.stopMusic) {
+    window.setTimeout(installResultAudioGuard, 80);
+    return;
   }
-}
 
-// Game.ts intentionally keeps rendering the 3D scene behind the result panel.
-// That render path also updates engine voices, so keep clearing them while the
-// result screen is visible. This does not touch physics or race scoring.
-let lastState = '';
-function resultAudioGuard(): void {
-  const state = game()?.currentState ?? '';
-  if (state === 'results') silenceResultsAudio();
-  lastState = state;
-  requestAnimationFrame(resultAudioGuard);
+  const originalUpdate = audio.update.bind(audio);
+  const originalPlayMusic = audio.playMusic.bind(audio);
+
+  audio.update = (dt, karts, playerKartId, camera) => {
+    if (g.currentState === 'results') {
+      originalUpdate(0, [], -1, camera);
+      return;
+    }
+    originalUpdate(dt, karts, playerKartId, camera);
+  };
+
+  audio.playMusic = (track) => {
+    if (g.currentState === 'results' && track === 'results') {
+      audio.stopMusic?.();
+      return;
+    }
+    originalPlayMusic(track);
+  };
 }
-requestAnimationFrame(resultAudioGuard);
+installResultAudioGuard();
 
 function permanentTrackUnlocked(index: number): boolean {
   const id = SUMMER_TRACKS[index];
@@ -65,9 +71,8 @@ function openConqueredTrack(index: number): void {
   const runtimeIndex = menu.tracks?.findIndex((track) => track.id === trackId) ?? -1;
   if (runtimeIndex < 0) return;
 
-  // A conquered course is permanently playable. Replaying it from this screen
-  // is treated as a practice/free race so it cannot duplicate championship
-  // points or skip the official current stage.
+  // Pista já conquistada pode ser rejogada sem mexer na tentativa oficial da Copa.
+  // Assim o jogador não perde progresso nem duplica pontos do campeonato.
   sessionStorage.removeItem('rc-championship');
   sessionStorage.removeItem('rc-summer-race');
   document.body.classList.remove('rc-summer-active');
