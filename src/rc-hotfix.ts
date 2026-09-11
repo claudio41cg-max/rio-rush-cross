@@ -1,10 +1,15 @@
-import { getProgress } from './core/progress';
-import { getActiveDifficulty, SUMMER_TRACKS } from './core/championship';
+import type { Difficulty } from './core/types';
+import { events } from './core/events';
+import { getActiveDifficulty, loadChampionship, SUMMER_TRACKS } from './core/championship';
+import { Kart } from './kart/Kart';
 
 type AudioRuntime = {
   update?: (dt: number, karts: readonly unknown[], playerKartId: number, camera: unknown) => void;
   stopMusic?: () => void;
   playMusic?: (track: 'menu' | 'race' | 'finalLap' | 'results' | 'none') => void;
+  ctx?: AudioContext | null;
+  sfxBus?: GainNode | null;
+  crowd?: { cheerBurst(strength: number): void } | null;
 };
 
 type MenuTrack = { id?: string };
@@ -37,6 +42,27 @@ function difficultyIndex(value: string | null): number {
   return value === 'easy' ? 0 : value === 'hard' ? 2 : 1;
 }
 
+// ---------------------------------------------------------------------------
+// Slightly faster karts without touching the stable physics constants.
+// All karts receive the same +8%, so balance between player and AI stays intact.
+// ---------------------------------------------------------------------------
+const SPEED_MULTIPLIER = 1.08;
+let speedPatched = false;
+function installKartSpeedBump(): void {
+  if (speedPatched) return;
+  const proto = Kart.prototype as unknown as { topSpeed: () => number };
+  const originalTopSpeed = proto.topSpeed;
+  if (typeof originalTopSpeed !== 'function') return;
+  proto.topSpeed = function patchedTopSpeed(this: Kart): number {
+    return originalTopSpeed.call(this) * SPEED_MULTIPLIER;
+  };
+  speedPatched = true;
+}
+installKartSpeedBump();
+
+// ---------------------------------------------------------------------------
+// Results audio guard: stop race engine/music from leaking behind result screens.
+// ---------------------------------------------------------------------------
 function installResultAudioGuard(): void {
   const g = game();
   const audio = g?.audio;
@@ -66,9 +92,97 @@ function installResultAudioGuard(): void {
 }
 installResultAudioGuard();
 
-// Copa Verão one-flow: a pista oficial já foi escolhida no painel da Copa.
-// Depois de escolher o carrinho, inicia essa corrida diretamente e não abre
-// o seletor genérico de pistas de novo.
+// ---------------------------------------------------------------------------
+// Victory celebration: keep the existing finish fanfare and add a stronger
+// crowd/applause layer. It uses the already-running game AudioContext.
+// ---------------------------------------------------------------------------
+function scheduleClap(ctx: AudioContext, dest: AudioNode, when: number, gain: number): void {
+  const frames = Math.max(1, Math.floor(ctx.sampleRate * 0.075));
+  const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 1650 + Math.random() * 700;
+  filter.Q.value = 0.8;
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(0.0001, when);
+  amp.gain.exponentialRampToValueAtTime(Math.max(0.001, gain), when + 0.006);
+  amp.gain.exponentialRampToValueAtTime(0.0001, when + 0.075);
+  source.connect(filter);
+  filter.connect(amp);
+  amp.connect(dest);
+  source.start(when);
+  source.stop(when + 0.09);
+}
+
+function playVictoryCelebration(strength = 1): void {
+  const audio = game()?.audio;
+  const ctx = audio?.ctx;
+  const dest = audio?.sfxBus;
+  if (!ctx || !dest || ctx.state !== 'running') return;
+
+  audio?.crowd?.cheerBurst(1);
+  const start = ctx.currentTime + 0.03;
+  for (let i = 0; i < 18; i++) {
+    const jitter = (Math.random() - 0.5) * 0.045;
+    scheduleClap(ctx, dest, start + i * 0.105 + jitter, 0.12 * strength * (0.8 + Math.random() * 0.4));
+  }
+
+  // Broad crowd roar under the claps, intentionally short so it never becomes
+  // another background-audio problem.
+  const duration = 2.4;
+  const frames = Math.floor(ctx.sampleRate * duration);
+  const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let brown = 0;
+  for (let i = 0; i < frames; i++) {
+    brown = brown * 0.985 + (Math.random() * 2 - 1) * 0.08;
+    data[i] = Math.max(-1, Math.min(1, brown));
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 720;
+  filter.Q.value = 0.45;
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(0.0001, start);
+  amp.gain.exponentialRampToValueAtTime(0.16 * strength, start + 0.18);
+  amp.gain.setValueAtTime(0.14 * strength, start + 1.55);
+  amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  source.connect(filter);
+  filter.connect(amp);
+  amp.connect(dest);
+  source.start(start);
+  source.stop(start + duration + 0.05);
+}
+
+events.on('race:finish', (event) => {
+  if (event.isPlayer && event.place === 1) playVictoryCelebration(1);
+});
+
+let championCelebrated = false;
+function syncChampionCelebration(): void {
+  const champion = document.querySelector<HTMLElement>('.champ-final-view.results-win');
+  if (champion && !championCelebrated) {
+    championCelebrated = true;
+    playVictoryCelebration(1.25);
+    const sub = champion.querySelector<HTMLElement>('.results-sub');
+    if (sub && !sub.textContent?.includes('Parabéns')) sub.textContent = `Parabéns, campeão! ${sub.textContent ?? ''}`.trim();
+  } else if (!champion) {
+    championCelebrated = false;
+  }
+  requestAnimationFrame(syncChampionCelebration);
+}
+requestAnimationFrame(syncChampionCelebration);
+
+// ---------------------------------------------------------------------------
+// Copa Verão one-flow: track -> kart -> race, without reopening generic tracks.
+// ---------------------------------------------------------------------------
 let flowPatched = false;
 function installChampionshipOneFlow(): void {
   if (flowPatched) return;
@@ -87,9 +201,7 @@ function installChampionshipOneFlow(): void {
       menu.currentPanel === 'characterSelect' &&
       (isOfficialSummerStageReady() || sessionStorage.getItem('rc-summer-practice') === '1')
     ) {
-      if (sessionStorage.getItem('rc-summer-practice') === '1') {
-        sessionStorage.removeItem('rc-summer-practice');
-      }
+      if (sessionStorage.getItem('rc-summer-practice') === '1') sessionStorage.removeItem('rc-summer-practice');
       startSelectedRace();
       return;
     }
@@ -100,9 +212,59 @@ function installChampionshipOneFlow(): void {
 }
 installChampionshipOneFlow();
 
+// ---------------------------------------------------------------------------
+// Permanent track progress is independent for Easy / Medium / Hard.
+// Existing saves are migrated by inferring the furthest stage actually reached
+// in each difficulty. Global free-race unlocks no longer leak across difficulties.
+// ---------------------------------------------------------------------------
+const DIFFICULTY_UNLOCK_KEY = 'rc-summer-unlocked-by-difficulty-v1';
+type DifficultyUnlocks = Record<Difficulty, number>;
+
+function defaultDifficultyUnlocks(): DifficultyUnlocks {
+  return { easy: 0, normal: 0, hard: 0 };
+}
+
+function inferredUnlockedStage(difficulty: Difficulty): number {
+  const cup = loadChampionship(difficulty);
+  if (cup.cleared || cup.completed) return 2;
+  let unlocked = 0;
+  for (const result of cup.results) unlocked = Math.max(unlocked, Math.min(2, result.stage + 1));
+  unlocked = Math.max(unlocked, Math.min(2, cup.currentStage));
+  return unlocked;
+}
+
+function loadDifficultyUnlocks(): DifficultyUnlocks {
+  const base = defaultDifficultyUnlocks();
+  try {
+    const raw = localStorage.getItem(DIFFICULTY_UNLOCK_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<DifficultyUnlocks>;
+      for (const difficulty of ['easy', 'normal', 'hard'] as Difficulty[]) {
+        const value = Number(parsed[difficulty]);
+        if (Number.isFinite(value)) base[difficulty] = Math.max(0, Math.min(2, Math.floor(value)));
+      }
+    }
+  } catch {
+    // Keep safe defaults.
+  }
+
+  let changed = false;
+  for (const difficulty of ['easy', 'normal', 'hard'] as Difficulty[]) {
+    const inferred = inferredUnlockedStage(difficulty);
+    if (inferred > base[difficulty]) {
+      base[difficulty] = inferred;
+      changed = true;
+    }
+  }
+  if (changed) {
+    try { localStorage.setItem(DIFFICULTY_UNLOCK_KEY, JSON.stringify(base)); } catch { /* ignore */ }
+  }
+  return base;
+}
+
 function permanentTrackUnlocked(index: number): boolean {
-  const trackId = SUMMER_TRACKS[index];
-  return !!trackId && getProgress().unlockedTracks.includes(trackId);
+  const difficulty = getActiveDifficulty() ?? 'easy';
+  return index <= loadDifficultyUnlocks()[difficulty];
 }
 
 function openConqueredTrack(index: number): void {
@@ -114,8 +276,9 @@ function openConqueredTrack(index: number): void {
   const runtimeIndex = menu.tracks?.findIndex((track) => track.id === trackId) ?? -1;
   if (runtimeIndex < 0) return;
 
-  // Mantém intacta a tentativa oficial salva no localStorage. Esta corrida
-  // é apenas uma repetição livre de uma pista já conquistada.
+  const difficulty = getActiveDifficulty() ?? 'easy';
+  // Keep the official attempt intact. Replaying an already conquered track is
+  // practice only and cannot duplicate championship points.
   sessionStorage.setItem('rc-summer-practice', '1');
   sessionStorage.removeItem('rc-championship');
   sessionStorage.removeItem('rc-summer-race');
@@ -123,33 +286,27 @@ function openConqueredTrack(index: number): void {
   delete document.body.dataset.rcSummerStage;
 
   menu.setTrack?.(runtimeIndex, false);
-  menu.setDifficulty?.(difficultyIndex(getActiveDifficulty()), false);
+  menu.setDifficulty?.(difficultyIndex(difficulty), false);
   menu.goTo?.('characterSelect', true);
 }
 
 function syncConqueredCards(): void {
   const cards = Array.from(document.querySelectorAll<HTMLButtonElement>('.rc-summer-track'));
-  if (cards.length === 0) {
-    requestAnimationFrame(syncConqueredCards);
-    return;
+  if (cards.length > 0) {
+    cards.forEach((card, index) => {
+      if (!permanentTrackUnlocked(index)) return;
+      const current = card.classList.contains('current');
+      const completed = card.classList.contains('completed');
+      if (!current && !completed) {
+        card.disabled = false;
+        card.classList.remove('locked');
+        card.classList.add('conquered');
+        card.setAttribute('aria-disabled', 'false');
+        const status = card.querySelector<HTMLElement>('.rc-stage-status');
+        if (status) status.textContent = '✓ LIBERADA · JOGAR';
+      }
+    });
   }
-
-  cards.forEach((card, index) => {
-    if (!permanentTrackUnlocked(index)) return;
-
-    const current = card.classList.contains('current');
-    const completed = card.classList.contains('completed');
-
-    if (!current && !completed) {
-      card.disabled = false;
-      card.classList.remove('locked');
-      card.classList.add('conquered');
-      card.setAttribute('aria-disabled', 'false');
-      const status = card.querySelector<HTMLElement>('.rc-stage-status');
-      if (status) status.textContent = '✓ LIBERADA · JOGAR';
-    }
-  });
-
   requestAnimationFrame(syncConqueredCards);
 }
 requestAnimationFrame(syncConqueredCards);
@@ -167,3 +324,42 @@ document.addEventListener('click', (event) => {
   event.stopImmediatePropagation();
   openConqueredTrack(index);
 }, true);
+
+// ---------------------------------------------------------------------------
+// Never expose internal kart colours as driver names on result tables.
+// ---------------------------------------------------------------------------
+const DRIVER_NAMES: Record<string, string> = {
+  VERMELHO: 'Lucas',
+  AZUL: 'Mateo',
+  VERDE: 'Ethan',
+  AMARELO: 'Sofia',
+  LARANJA: 'Noah',
+  ROXO: 'Kenji',
+  BRANCO: 'Enzo',
+  PRETO: 'Mila',
+};
+
+function syncDriverNamesAndVictoryCopy(): void {
+  const names = document.querySelectorAll<HTMLElement>('.standing-name, .champ-pilot');
+  names.forEach((node) => {
+    const text = (node.textContent ?? '').trim();
+    if (!text) return;
+    if (text.includes('(VOCÊ)')) {
+      node.textContent = 'CLÁUDIO (VOCÊ)';
+      return;
+    }
+    const upper = text.toUpperCase();
+    for (const [colour, driver] of Object.entries(DRIVER_NAMES)) {
+      if (upper === colour || upper.startsWith(`${colour} `)) {
+        node.textContent = driver;
+        break;
+      }
+    }
+  });
+
+  const result = document.querySelector<HTMLElement>('.results.champ-race-view.results-victory .results-sub');
+  if (result && !result.textContent?.includes('Parabéns')) result.textContent = 'Parabéns! Você venceu esta etapa!';
+
+  requestAnimationFrame(syncDriverNamesAndVictoryCopy);
+}
+requestAnimationFrame(syncDriverNamesAndVictoryCopy);
