@@ -7,6 +7,8 @@ import './championship-preview.css';
 import './results-upgrade.css';
 import './webgl-recovery.css';
 import { GAME_TITLE } from './core/constants';
+import { events } from './core/events';
+import { getProgress, saveProgress } from './core/progress';
 import { Game } from './game/Game';
 import { el } from './ui/dom';
 import { showToast } from './ui/toast';
@@ -14,6 +16,92 @@ import { installChampionshipPreview } from './ui/ChampionshipPreview';
 import { installWebGLRecovery } from './ui/WebGLRecovery';
 
 let activeGame: Game | null = null;
+
+const SUMMER_PROGRESS_TRACK_IDS = ['summer_beach', 'summer_sunset', 'summer_tropical'] as const;
+
+type RuntimeAudio = {
+  muted: boolean;
+  setMuted(muted: boolean): void;
+  stopMusic(): void;
+  playMusic(track: 'menu' | 'race' | 'finalLap' | 'results' | 'none'): void;
+  update(dt: number, karts: readonly never[], playerKartId: number, camera: unknown): void;
+};
+
+type RuntimeGameInternals = {
+  audio?: RuntimeAudio;
+  camera?: unknown;
+  currentMusic?: 'menu' | 'race' | 'finalLap' | 'results' | 'none';
+  simulate?: (dt: number, input: unknown) => void;
+};
+
+function runtimeInternals(game: Game | null = activeGame): RuntimeGameInternals | null {
+  return game ? game as unknown as RuntimeGameInternals : null;
+}
+
+function grantEarnedSummerTracks(stage: number): void {
+  const safeStage = Math.max(0, Math.min(SUMMER_PROGRESS_TRACK_IDS.length - 1, Math.floor(stage)));
+  const highestEarned = Math.min(SUMMER_PROGRESS_TRACK_IDS.length - 1, safeStage + 1);
+  const progress = getProgress();
+  let changed = false;
+  for (let i = 0; i <= highestEarned; i++) {
+    const trackId = SUMMER_PROGRESS_TRACK_IDS[i];
+    if (!progress.unlockedTracks.includes(trackId)) {
+      progress.unlockedTracks.push(trackId);
+      changed = true;
+    }
+  }
+  if (changed) saveProgress(progress);
+}
+
+function stopLiveRaceEngines(): void {
+  const runtime = runtimeInternals();
+  if (!runtime?.audio || !runtime.camera) return;
+  try {
+    runtime.audio.update(0, [], -1, runtime.camera);
+  } catch (err) {
+    console.warn('[RC Rush] Não foi possível encerrar os motores da corrida', err);
+  }
+}
+
+function freezeSimulationOnResults(game: Game): void {
+  const runtime = runtimeInternals(game);
+  if (!runtime?.simulate) return;
+  const originalSimulate = runtime.simulate.bind(game);
+  runtime.simulate = (dt: number, input: unknown): void => {
+    if (game.currentState === 'results') return;
+    originalSimulate(dt, input);
+  };
+}
+
+let backgroundAudioPaused = false;
+let backgroundWasMuted = false;
+let backgroundTrack: 'menu' | 'race' | 'finalLap' | 'results' | 'none' = 'none';
+
+function suspendGameAudio(): void {
+  if (backgroundAudioPaused) return;
+  const runtime = runtimeInternals();
+  const audio = runtime?.audio;
+  if (!runtime || !audio) return;
+  backgroundAudioPaused = true;
+  backgroundWasMuted = audio.muted;
+  backgroundTrack = runtime.currentMusic ?? 'none';
+  if (!backgroundWasMuted) audio.setMuted(true);
+  audio.stopMusic();
+  stopLiveRaceEngines();
+}
+
+function resumeGameAudio(): void {
+  if (!backgroundAudioPaused || document.hidden) return;
+  const runtime = runtimeInternals();
+  const audio = runtime?.audio;
+  backgroundAudioPaused = false;
+  if (!runtime || !audio) return;
+  if (!backgroundWasMuted) {
+    audio.setMuted(false);
+    if (backgroundTrack !== 'none') audio.playMusic(backgroundTrack);
+  }
+  backgroundTrack = 'none';
+}
 
 function hasWebGL2(): boolean {
   try {
@@ -70,6 +158,7 @@ function boot(): void {
   try {
     const game = new Game(app);
     activeGame = game;
+    freezeSimulationOnResults(game);
     installWebGLRecovery();
     game.start();
     installChampionshipPreview();
@@ -85,6 +174,22 @@ if (document.readyState === 'loading') {
 } else {
   boot();
 }
+
+events.on('game:stateChange', ({ to }) => {
+  if (to !== 'results') return;
+  stopLiveRaceEngines();
+  if (sessionStorage.getItem('rc-championship') === 'summer') {
+    const stage = Number(sessionStorage.getItem('rc-summer-race') ?? '0');
+    grantEarnedSummerTracks(stage);
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) suspendGameAudio();
+  else resumeGameAudio();
+});
+window.addEventListener('pagehide', suspendGameAudio);
+window.addEventListener('pageshow', resumeGameAudio);
 
 // Controles de celular: só aparecem quando a corrida começa.
 const mobile = document.createElement('div');
@@ -137,12 +242,31 @@ function syncSummerTrackVisibility(): void {
   if (title) title.textContent = summer ? 'COPA VERÃO · ESCOLHA A CORRIDA' : 'ESCOLHA UM CIRCUITO';
 }
 
+function syncPermanentSummerStages(): void {
+  const items = Array.from(document.querySelectorAll<HTMLButtonElement>('.rc-summer-track'));
+  if (items.length === 0) return;
+  const unlocked = getProgress().unlockedTracks;
+  items.forEach((item, index) => {
+    const trackId = SUMMER_PROGRESS_TRACK_IDS[index];
+    if (!trackId) return;
+    const permanent = unlocked.includes(trackId);
+    const currentOrCompleted = item.classList.contains('current') || item.classList.contains('completed');
+    item.classList.toggle('conquered', permanent && !currentOrCompleted);
+    if (permanent && item.classList.contains('locked')) item.classList.remove('locked');
+    const status = item.querySelector<HTMLElement>('.rc-stage-status');
+    if (permanent && !currentOrCompleted && status?.textContent?.includes('BLOQUEADA')) {
+      status.textContent = '✓ CONQUISTADA';
+    }
+  });
+}
+
 function syncMobileControls(): void {
   const state = activeGame?.currentState;
   const raceActive = state === 'countdown' || state === 'racing';
   mobile.classList.toggle('race-active', raceActive);
   if (!raceActive) releaseTiltDirection();
   syncSummerTrackVisibility();
+  syncPermanentSummerStages();
   requestAnimationFrame(syncMobileControls);
 }
 requestAnimationFrame(syncMobileControls);
