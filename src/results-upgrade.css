@@ -1,150 +1,34 @@
-/* RC Rush — ResultsScreen B: compact landscape celebration */
-.results-panel {
-  position: relative;
+/* RC Rush — result celebration + official championship presentation */
+.results-panel{position:relative;overflow:hidden}
+.results-panel.results-win{border-color:rgba(255,210,63,.72)!important;box-shadow:0 0 0 1px rgba(255,210,63,.18),0 0 38px rgba(255,177,32,.28),0 22px 60px rgba(0,0,0,.48)!important}
+.results-panel.results-win::after{content:'';position:absolute;inset:-35%;pointer-events:none;background:conic-gradient(from 0deg,transparent 0 42deg,rgba(255,220,100,.11) 54deg,transparent 70deg 145deg,rgba(255,255,255,.08) 160deg,transparent 178deg 250deg,rgba(255,190,60,.10) 270deg,transparent 290deg);animation:rc-results-rays 8s linear infinite;z-index:-1}
+.results-victory::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;background:radial-gradient(circle at 50% 32%,rgba(255,225,90,.22),transparent 44%);animation:rc-victory-flash .7s ease-out both}
+.results-topline{display:flex;align-items:center;justify-content:center;gap:12px;position:relative;z-index:2}
+.results-topline .panel-kicker{margin:0!important}
+.champ-difficulty-badge{position:absolute;right:0;top:-2px;padding:5px 10px;border-radius:10px;border:1px solid rgba(91,215,255,.38);background:rgba(8,28,43,.84);color:#bff6ff;font-size:10px;font-weight:1000;letter-spacing:.08em;text-transform:uppercase}
+.champ-track-label{text-align:center;color:rgba(255,255,255,.78);font-weight:900;letter-spacing:.12em;font-size:11px;margin:3px 0 0;position:relative;z-index:2}
+.results-title{letter-spacing:.035em!important;position:relative;z-index:2}
+.results-win .results-title{color:#ffe26a!important;-webkit-text-fill-color:#ffe26a!important;background:none!important;filter:drop-shadow(0 3px 0 rgba(120,70,0,.55)) drop-shadow(0 0 20px rgba(255,210,63,.55))!important;animation:rc-title-win .8s cubic-bezier(.2,.9,.2,1.15) both}
+.results-sub{color:rgba(255,255,255,.82)!important;font-weight:700;position:relative;z-index:2}
+.results-reward{display:flex;align-items:center;justify-content:space-between;gap:12px;border-radius:12px;background:linear-gradient(90deg,rgba(255,174,32,.20),rgba(255,215,80,.10));border:1px solid rgba(255,210,63,.34);position:relative;z-index:2}
+.results-reward-amount{font-family:var(--display);font-size:clamp(15px,4vh,24px);letter-spacing:.05em;color:#ffd94f;text-shadow:0 2px 8px rgba(0,0,0,.45)}
+.results-reward-meta{font-size:clamp(9px,2.3vh,13px);color:rgba(255,255,255,.75);white-space:nowrap}
+.champ-points-line{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0;padding:8px 12px;border-radius:12px;background:rgba(7,14,28,.54);border:1px solid rgba(255,255,255,.12);position:relative;z-index:2}.champ-points-line strong{color:#ffd84a;font-family:var(--display);font-size:clamp(16px,3.4vh,23px);letter-spacing:.05em}.champ-points-line span{font-size:10px;color:rgba(255,255,255,.72);text-transform:uppercase;letter-spacing:.08em}
+.champ-content-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,28%);gap:10px;min-height:0;flex:1;position:relative;z-index:2}.champ-content-wrap>.standings{min-width:0}.champ-aside{border-radius:14px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,rgba(8,16,31,.84),rgba(16,25,44,.72));padding:10px;color:#fff;display:flex;flex-direction:column;gap:6px;justify-content:center}.champ-aside-title{font-size:10px;font-weight:1000;letter-spacing:.1em;color:#d9f5ff}.champ-aside-big{font-size:clamp(13px,2vw,19px);font-weight:1000;color:#fff;line-height:1.05}.champ-aside p{font-size:10px;line-height:1.25;margin:2px 0;color:rgba(255,255,255,.8)}.champ-aside small{font-size:9px;color:#8fdcff}.champ-next-art{height:58px;border-radius:10px;display:grid;place-items:center;font-size:35px;background:linear-gradient(160deg,rgba(249,115,22,.4),rgba(14,165,233,.32));border:1px solid rgba(255,255,255,.12)}
+.champ-table-view .standings,.champ-final-view .standings{display:flex;flex-direction:column;gap:2px;background:rgba(5,10,20,.48);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:4px;overflow:hidden}.champ-standing-row{display:grid;grid-template-columns:46px minmax(105px,1.5fr) 44px minmax(70px,.8fr) 50px;align-items:center;gap:5px;padding:4px 7px;border-radius:8px;background:rgba(255,255,255,.035);font-size:11px;min-height:27px}.champ-standing-row.you{background:linear-gradient(90deg,rgba(255,190,30,.33),rgba(255,255,255,.055));outline:1px solid rgba(255,205,65,.72)}.champ-standing-row.podium-1:not(.you){background:rgba(255,205,70,.08)}.champ-standing-row.podium-2:not(.you){background:rgba(190,215,235,.06)}.champ-standing-row.podium-3:not(.you){background:rgba(210,130,70,.07)}.champ-standing-head{background:transparent!important;color:rgba(255,255,255,.58);font-size:8px;font-weight:1000;letter-spacing:.08em;min-height:18px;padding-top:1px;padding-bottom:1px}.champ-pos{font-weight:1000;color:#fff}.champ-pilot{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.champ-country{text-align:center;font-size:16px}.champ-race-points,.champ-total-points{text-align:center;font-weight:1000}.champ-race-points{color:#ffd84a}.champ-total-points{color:#fff}
+.champ-final-summary{display:grid;gap:4px;font-size:10px;font-weight:800;color:rgba(255,255,255,.88);border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:7px}.champ-next-challenges{display:flex;flex-direction:column;gap:4px;padding-top:4px}.champ-next-challenges strong{font-size:9px;color:#ffd84a;letter-spacing:.08em}.champ-next-challenges span{font-size:9px;color:rgba(255,255,255,.82)}
+.champ-race-view .results-title{font-size:clamp(34px,8vh,58px)!important;margin:3px 0!important}.champ-race-view .results-sub{text-align:center}.champ-race-view .results-reward{max-width:620px;margin:5px auto!important;width:100%}.champ-race-view .champ-points-line{max-width:620px;margin:5px auto 8px!important;width:100%}.champ-race-view .results-actions{margin-top:auto}.champ-table-view .results-title,.champ-final-view .results-title{font-size:clamp(23px,5vh,36px)!important;margin:2px 0!important}.champ-table-view .results-sub,.champ-final-view .results-sub{text-align:center;font-size:10px!important;margin:0 0 5px!important}.champ-final-view .results-title{color:#ffe26a!important;-webkit-text-fill-color:#ffe26a!important;background:none!important}
+.results-actions{position:relative;z-index:3}.results-actions .btn.primary{min-width:clamp(150px,22vw,220px)!important}.results-pop{animation:rc-results-pop .45s cubic-bezier(.16,1,.3,1) both!important}
+@keyframes rc-results-pop{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes rc-title-win{0%{transform:scale(.72);opacity:0}65%{transform:scale(1.09);opacity:1}100%{transform:scale(1)}}
+@keyframes rc-victory-flash{0%{opacity:0}22%{opacity:1}100%{opacity:.45}}
+@keyframes rc-results-rays{to{transform:rotate(360deg)}}
+
+@media (orientation:landscape) and (pointer:coarse){
+.results-panel{width:min(94vw,980px)!important;height:min(91dvh,510px)!important;padding:10px 16px!important;display:flex!important;flex-direction:column!important;gap:2px!important}
+.results-title{font-size:clamp(22px,6.8vh,38px)!important;margin:0 0 2px!important}.results-sub{font-size:clamp(10px,2.55vh,14px)!important;margin-bottom:2px!important}.results-reward{min-height:38px;padding:5px 10px!important;margin:3px 0 4px!important}.standings{border-radius:12px;background:rgba(5,8,18,.20)}.standing-row.you{outline:1px solid rgba(55,168,255,.55);background:linear-gradient(90deg,rgba(55,168,255,.16),rgba(255,255,255,.035))}.results-win .standing-row.you{outline-color:rgba(255,210,63,.62);background:linear-gradient(90deg,rgba(255,210,63,.18),rgba(255,255,255,.035))}.results-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:8px!important}.results-actions .btn{width:100%;min-width:0!important;min-height:44px!important;padding:7px 9px!important;font-size:clamp(9px,2.2vh,13px)!important}.champ-race-view .results-actions .btn:first-child{background:linear-gradient(135deg,#0ea5e9,#7c3aed)!important}.champ-race-view .results-actions .btn:nth-child(2){background:linear-gradient(135deg,#f59e0b,#ef4444)!important;border-color:rgba(255,255,255,.4)!important}.champ-table-view .results-actions .btn:nth-child(2){background:linear-gradient(135deg,#f59e0b,#ef4444)!important}.champ-final-view .results-actions .btn:nth-child(2){background:linear-gradient(135deg,#0ea5e9,#7c3aed)!important}.champ-content-wrap{overflow:hidden}.champ-table-view .standings,.champ-final-view .standings{overflow-y:auto}.champ-table-view .champ-content-wrap,.champ-final-view .champ-content-wrap{min-height:170px}
 }
 
-.results-panel.results-win {
-  border-color: rgba(255, 210, 63, .72) !important;
-  box-shadow:
-    0 0 0 1px rgba(255, 210, 63, .18),
-    0 0 38px rgba(255, 177, 32, .28),
-    0 22px 60px rgba(0, 0, 0, .48) !important;
-}
-
-.results-panel.results-win::after {
-  content: '';
-  position: absolute;
-  inset: -35%;
-  pointer-events: none;
-  background: conic-gradient(from 0deg, transparent 0 42deg, rgba(255,220,100,.11) 54deg, transparent 70deg 145deg, rgba(255,255,255,.08) 160deg, transparent 178deg 250deg, rgba(255,190,60,.10) 270deg, transparent 290deg);
-  animation: rc-results-rays 8s linear infinite;
-  z-index: -1;
-}
-
-.results-victory::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background: radial-gradient(circle at 50% 32%, rgba(255,225,90,.22), transparent 44%);
-  animation: rc-victory-flash .7s ease-out both;
-}
-
-.results-title {
-  letter-spacing: .035em !important;
-}
-.results-win .results-title {
-  color: #ffe26a !important;
-  -webkit-text-fill-color: #ffe26a !important;
-  background: none !important;
-  filter: drop-shadow(0 3px 0 rgba(120,70,0,.55)) drop-shadow(0 0 20px rgba(255,210,63,.55)) !important;
-  animation: rc-title-win .8s cubic-bezier(.2,.9,.2,1.15) both;
-}
-
-.results-sub {
-  color: rgba(255,255,255,.82) !important;
-  font-weight: 700;
-}
-
-.results-reward {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-radius: 12px;
-  background: linear-gradient(90deg, rgba(255,174,32,.20), rgba(255,215,80,.10));
-  border: 1px solid rgba(255,210,63,.34);
-}
-.results-reward-amount {
-  font-family: var(--display);
-  font-size: clamp(15px, 4vh, 24px);
-  letter-spacing: .05em;
-  color: #ffd94f;
-  text-shadow: 0 2px 8px rgba(0,0,0,.45);
-}
-.results-reward-meta {
-  font-size: clamp(9px, 2.3vh, 13px);
-  color: rgba(255,255,255,.75);
-  white-space: nowrap;
-}
-
-.results-actions {
-  position: relative;
-  z-index: 3;
-}
-.results-actions .btn.primary {
-  min-width: clamp(150px, 22vw, 220px) !important;
-}
-
-.results-pop {
-  animation: rc-results-pop .45s cubic-bezier(.16,1,.3,1) both !important;
-}
-
-@keyframes rc-results-pop {
-  from { opacity: 0; transform: translateY(14px) scale(.96); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes rc-title-win {
-  0% { transform: scale(.72); opacity: 0; }
-  65% { transform: scale(1.09); opacity: 1; }
-  100% { transform: scale(1); }
-}
-@keyframes rc-victory-flash {
-  0% { opacity: 0; }
-  22% { opacity: 1; }
-  100% { opacity: .45; }
-}
-@keyframes rc-results-rays { to { transform: rotate(360deg); } }
-
-@media (orientation: landscape) and (pointer: coarse) {
-  .results-panel {
-    width: min(92vw, 820px) !important;
-    height: min(88dvh, 470px) !important;
-    padding-top: clamp(8px, 2vh, 14px) !important;
-  }
-  .results-title {
-    font-size: clamp(22px, 6.8vh, 38px) !important;
-    margin: 0 0 2px !important;
-  }
-  .results-sub {
-    font-size: clamp(10px, 2.55vh, 14px) !important;
-    margin-bottom: 2px !important;
-  }
-  .results-reward {
-    min-height: 38px;
-    padding: 5px 10px !important;
-    margin: 3px 0 4px !important;
-  }
-  .standings {
-    border-radius: 12px;
-    background: rgba(5,8,18,.20);
-  }
-  .standing-row.you {
-    outline: 1px solid rgba(55,168,255,.55);
-    background: linear-gradient(90deg, rgba(55,168,255,.16), rgba(255,255,255,.035));
-  }
-  .results-win .standing-row.you {
-    outline-color: rgba(255,210,63,.62);
-    background: linear-gradient(90deg, rgba(255,210,63,.18), rgba(255,255,255,.035));
-  }
-  .results-actions {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-  }
-  .results-actions .btn {
-    width: 100%;
-    min-width: 0 !important;
-    min-height: 44px !important;
-    padding: 7px 9px !important;
-  }
-}
-
-@media (orientation: landscape) and (pointer: coarse) and (max-height: 410px) {
-  .results-panel { height: calc(100dvh - 14px) !important; }
-  .results-title { font-size: clamp(20px, 6vh, 31px) !important; }
-  .results-reward { min-height: 32px; padding: 3px 8px !important; }
-  .results-reward-amount { font-size: clamp(13px, 3.7vh, 20px); }
-  .results-actions .btn { min-height: 42px !important; font-size: clamp(9px, 2.4vh, 13px) !important; }
+@media (orientation:landscape) and (pointer:coarse) and (max-height:430px){
+.results-panel{height:calc(100dvh - 12px)!important;width:min(95vw,960px)!important;padding:6px 12px!important}.champ-race-view .results-title{font-size:clamp(28px,7vh,42px)!important}.results-reward{min-height:31px;padding:3px 8px!important}.results-reward-amount{font-size:clamp(13px,3.7vh,20px)}.champ-points-line{padding:5px 8px!important;margin:3px auto!important}.champ-points-line strong{font-size:15px}.results-actions .btn{min-height:39px!important;font-size:clamp(8px,2.2vh,12px)!important}.champ-standing-row{min-height:22px;padding:2px 6px;font-size:9px;grid-template-columns:38px minmax(95px,1.5fr) 36px 65px 42px}.champ-standing-head{font-size:7px;min-height:15px}.champ-country{font-size:13px}.champ-aside{padding:7px}.champ-next-art{height:38px;font-size:24px}.champ-aside p,.champ-final-summary,.champ-next-challenges span{font-size:8px}.champ-aside-title,.champ-next-challenges strong{font-size:8px}.champ-table-view .results-title,.champ-final-view .results-title{font-size:21px!important}.champ-track-label{font-size:8px}.champ-difficulty-badge{font-size:8px;padding:3px 6px}.champ-table-view .champ-content-wrap,.champ-final-view .champ-content-wrap{min-height:145px}
 }
