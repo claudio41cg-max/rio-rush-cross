@@ -1,5 +1,15 @@
+import type { Difficulty } from '../core/types';
 import { el } from './dom';
-import { beginChampionshipStage, loadChampionship, SUMMER_TRACKS } from '../core/championship';
+import {
+  beginChampionshipStage,
+  championshipDifficultyStatus,
+  DIFFICULTY_COIN_LABEL,
+  DIFFICULTY_LABEL,
+  getActiveDifficulty,
+  loadChampionship,
+  startOrContinueChampionship,
+  SUMMER_TRACKS,
+} from '../core/championship';
 
 const SUMMER_TRACK_IDS = SUMMER_TRACKS;
 const RACE_SONGS = ['SUMMER DRIVE', 'BEACH RUNNERS', 'SUNSET RACE', 'TROPICAL VIBES', 'NIGHT SPEED'];
@@ -11,28 +21,95 @@ const CUPS = [
   { icon: '🌲', name: 'COPA FLORESTA', sub: '3 pistas verdes', state: 'BLOQUEADA', cls: 'forest' },
 ];
 
+const DIFFICULTIES: Array<{ id: Difficulty; icon: string; sub: string }> = [
+  { id: 'easy', icon: '🌴', sub: 'Rivais mais tranquilos' },
+  { id: 'normal', icon: '🏁', sub: 'Desafio equilibrado' },
+  { id: 'hard', icon: '🔥', sub: 'Rivais no máximo' },
+];
+
 type MenuRuntime = {
   tracks?: Array<{ id?: string }>;
   setTrack?: (index: number, sound?: boolean) => void;
+  setDifficulty?: (index: number, sound?: boolean) => void;
   goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void;
 };
 type GameRuntime = { mainMenu?: MenuRuntime };
-function menu(): MenuRuntime | null { return ((window as unknown as { __turboKartRush?: GameRuntime }).__turboKartRush?.mainMenu) ?? null; }
-function stop(ev: Event): void { ev.preventDefault(); ev.stopPropagation(); }
+
+function menu(): MenuRuntime | null {
+  return ((window as unknown as { __turboKartRush?: GameRuntime }).__turboKartRush?.mainMenu) ?? null;
+}
+
+function stop(ev: Event): void {
+  ev.preventDefault();
+  ev.stopPropagation();
+}
+
 function setSummer(enabled: boolean): void {
   document.body.classList.toggle('rc-summer-active', enabled);
   if (!enabled) {
     sessionStorage.removeItem('rc-championship');
     sessionStorage.removeItem('rc-summer-race');
+    delete document.body.dataset.rcSummerStage;
   }
 }
+
+function difficultyIndex(difficulty: Difficulty): number {
+  return difficulty === 'easy' ? 0 : difficulty === 'hard' ? 2 : 1;
+}
+
+function syncChampionshipTrackPanel(): void {
+  if (sessionStorage.getItem('rc-championship') !== 'summer') return;
+  const difficulty = getActiveDifficulty();
+  if (!difficulty) return;
+  const stage = Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+  document.body.dataset.rcSummerStage = String(stage);
+
+  const m = menu();
+  m?.setDifficulty?.(difficultyIndex(difficulty), false);
+
+  const panel = document.querySelector<HTMLElement>('.panel-tracks');
+  if (!panel || !panel.classList.contains('active')) return;
+
+  const diffButtons = Array.from(panel.querySelectorAll<HTMLButtonElement>('.difficulty .seg'));
+  diffButtons.forEach((button, index) => {
+    button.disabled = true;
+    button.classList.toggle('selected', index === difficultyIndex(difficulty));
+    button.setAttribute('aria-disabled', 'true');
+  });
+
+  const label = panel.querySelector<HTMLElement>('.difficulty-label');
+  if (label) label.textContent = `DIFICULDADE DO CAMPEONATO · ${DIFFICULTY_LABEL[difficulty]} · TRAVADA`;
+  const blurb = panel.querySelector<HTMLElement>('.difficulty-blurb');
+  if (blurb) blurb.textContent = 'A dificuldade escolhida vale até o fim desta Copa.';
+  const start = panel.querySelector<HTMLButtonElement>('.start');
+  if (start) start.textContent = `COMEÇAR ETAPA ${stage + 1}`;
+
+  const trackCards = Array.from(panel.querySelectorAll<HTMLElement>('.track-card'));
+  trackCards.forEach((card) => {
+    const name = card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
+    if (!['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL'].includes(name)) return;
+    card.querySelector('.rc-champ-track-note')?.remove();
+  });
+  const selectedName = ['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL'][stage];
+  const selected = trackCards.find((card) => card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() === selectedName);
+  if (selected) {
+    const note = el('div', 'rc-champ-track-note', `ETAPA ${stage + 1}/3 · ${DIFFICULTY_LABEL[difficulty]}`, selected);
+    note.setAttribute('aria-label', `Etapa ${stage + 1} de 3, dificuldade ${DIFFICULTY_LABEL[difficulty]}`);
+  }
+}
+
 function chooseSummerTrack(index: number): void {
   if (!beginChampionshipStage(index)) return;
+  document.body.dataset.rcSummerStage = String(index);
   const m = menu();
   const wanted = SUMMER_TRACK_IDS[index];
   const runtimeIndex = m?.tracks?.findIndex((t) => t.id === wanted) ?? -1;
   if (runtimeIndex >= 0) m?.setTrack?.(runtimeIndex, false);
+  const difficulty = getActiveDifficulty();
+  if (difficulty) m?.setDifficulty?.(difficultyIndex(difficulty), false);
   m?.goTo?.('characterSelect', true);
+  requestAnimationFrame(syncChampionshipTrackPanel);
+  setTimeout(syncChampionshipTrackPanel, 120);
 }
 
 function createSettingsPanel(title: HTMLElement): HTMLElement {
@@ -93,15 +170,41 @@ export function installChampionshipPreview(): void {
     el('div', 'rc-cups-title', 'ESCOLHA SUA COPA', head);
     const cards = el('div', 'rc-cup-grid', undefined, cups);
 
+    const difficultyPanel = el('div', 'rc-champ-difficulty hidden', undefined, title);
+    el('div', 'rc-cups-kicker', 'COPA VERÃO', difficultyPanel);
+    el('div', 'rc-cups-title', 'ESCOLHA A DIFICULDADE', difficultyPanel);
+    el('div', 'rc-champ-difficulty-note', 'A dificuldade fica travada até o fim do campeonato.', difficultyPanel);
+    const difficultyGrid = el('div', 'rc-champ-difficulty-grid', undefined, difficultyPanel);
+    const difficultyButtons: HTMLButtonElement[] = [];
+
     const summerPanel = el('div', 'rc-summer-cup hidden', undefined, title);
-    el('div', 'rc-cups-kicker', 'COPA VERÃO', summerPanel);
+    const summerKicker = el('div', 'rc-cups-kicker', 'COPA VERÃO', summerPanel);
     el('div', 'rc-cups-title', 'ETAPAS DA COPA VERÃO', summerPanel);
     const summerTracks = el('div', 'rc-summer-track-list', undefined, summerPanel);
     const names = ['☀️ Praia ao Meio-Dia', '🌅 Orla do Pôr do Sol', '🌴 Costa Tropical'];
     const trackButtons: HTMLButtonElement[] = [];
 
+    const refreshDifficultyCards = (): void => {
+      DIFFICULTIES.forEach((entry, index) => {
+        const status = championshipDifficultyStatus(entry.id);
+        const button = difficultyButtons[index];
+        if (!button) return;
+        button.classList.toggle('cleared', status.cleared);
+        const state = button.querySelector<HTMLElement>('.rc-champ-diff-state');
+        if (state) {
+          state.textContent = status.cleared
+            ? '🏆 CAMPEÃO · JOGAR NOVAMENTE'
+            : status.racesDone > 0 && !status.completed
+              ? `CONTINUAR · ETAPA ${status.currentStage + 1}/3`
+              : 'COMEÇAR CAMPEONATO';
+        }
+      });
+    };
+
     const refreshStages = (): void => {
-      const cup = loadChampionship();
+      const difficulty = getActiveDifficulty() ?? 'easy';
+      const cup = loadChampionship(difficulty);
+      summerKicker.textContent = `COPA VERÃO · ${DIFFICULTY_LABEL[difficulty]}`;
       trackButtons.forEach((item, i) => {
         const result = cup.results.find((r) => r.stage === i);
         const completed = !!result;
@@ -110,17 +213,39 @@ export function installChampionshipPreview(): void {
         item.disabled = completed || locked;
         item.classList.toggle('locked', locked);
         item.classList.toggle('completed', completed);
+        item.classList.toggle('current', current);
         item.setAttribute('aria-disabled', String(item.disabled));
         const status = item.querySelector<HTMLElement>('.rc-stage-status');
         if (status) {
+          const playerLine = result?.standings.find((s) => s.isPlayer);
           status.textContent = completed
-            ? `✓ CONCLUÍDA · ${result?.playerPlace ?? 8}º · +${result?.standings.find((s) => s.isPlayer)?.points ?? 1} PTS`
+            ? `${result?.playerPlace ?? 8}º · +${playerLine?.points ?? 1} PTS`
             : current
-              ? '▶ LIBERADA'
+              ? '▶ A JOGAR'
               : '🔒 BLOQUEADA';
         }
       });
     };
+
+    DIFFICULTIES.forEach((entry) => {
+      const card = el('button', `rc-champ-difficulty-card ${entry.id}`, undefined, difficultyGrid) as HTMLButtonElement;
+      card.type = 'button';
+      el('div', 'rc-champ-diff-icon', entry.icon, card);
+      el('strong', '', DIFFICULTY_LABEL[entry.id], card);
+      el('span', '', entry.sub, card);
+      el('small', 'rc-champ-diff-coins', `🪙 ${DIFFICULTY_COIN_LABEL[entry.id]}`, card);
+      el('b', 'rc-champ-diff-state', '', card);
+      card.addEventListener('click', (ev) => {
+        stop(ev);
+        startOrContinueChampionship(entry.id);
+        refreshDifficultyCards();
+        refreshStages();
+        difficultyPanel.classList.add('hidden');
+        summerPanel.classList.remove('hidden');
+      });
+      difficultyButtons.push(card);
+    });
+    refreshDifficultyCards();
 
     names.forEach((name, i) => {
       const item = el('button', 'rc-summer-track', undefined, summerTracks) as HTMLButtonElement;
@@ -130,7 +255,9 @@ export function installChampionshipPreview(): void {
       el('small', 'rc-stage-status', '', item);
       item.addEventListener('click', (ev) => {
         stop(ev);
-        const cup = loadChampionship();
+        const difficulty = getActiveDifficulty();
+        if (!difficulty) return;
+        const cup = loadChampionship(difficulty);
         if (cup.completed || i !== cup.currentStage || cup.results.some((r) => r.stage === i)) return;
         summerPanel.classList.add('hidden');
         chooseSummerTrack(i);
@@ -140,8 +267,10 @@ export function installChampionshipPreview(): void {
     refreshStages();
 
     const summerActions = el('div', 'rc-summer-actions', undefined, summerPanel);
-    const summerBack = el('button', 'rc-cups-back', '← VOLTAR', summerActions) as HTMLButtonElement;
+    const summerBack = el('button', 'rc-cups-back', '← DIFICULDADE', summerActions) as HTMLButtonElement;
     summerBack.type = 'button';
+    const difficultyBack = el('button', 'rc-cups-back', '← COPAS', difficultyPanel) as HTMLButtonElement;
+    difficultyBack.type = 'button';
 
     for (const cup of CUPS) {
       const card = el('button', `rc-cup-card ${cup.cls}`, undefined, cards) as HTMLButtonElement;
@@ -154,9 +283,9 @@ export function installChampionshipPreview(): void {
       card.addEventListener('click', (ev) => {
         stop(ev);
         if (cup.state !== 'ABERTA') return;
-        refreshStages();
+        refreshDifficultyCards();
         cups.classList.add('hidden');
-        summerPanel.classList.remove('hidden');
+        difficultyPanel.classList.remove('hidden');
       });
     }
 
@@ -165,18 +294,39 @@ export function installChampionshipPreview(): void {
     const settingsPanel = createSettingsPanel(title);
     const settingsBack = settingsPanel.querySelector<HTMLButtonElement>('.rc-cups-back');
 
-    champ.addEventListener('click', (ev) => { stop(ev); setSummer(false); modeMenu.classList.add('hidden'); cups.classList.remove('hidden'); });
-    free.addEventListener('click', (ev) => { stop(ev); setSummer(false); requestAnimationFrame(() => title.click()); });
-    summerBack.addEventListener('click', (ev) => { stop(ev); setSummer(false); summerPanel.classList.add('hidden'); cups.classList.remove('hidden'); });
-    garage.addEventListener('click', (ev) => { stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => garage.textContent = old, 900); });
-    settings.addEventListener('click', (ev) => { stop(ev); modeMenu.classList.add('hidden'); settingsPanel.classList.remove('hidden'); });
-    settingsBack?.addEventListener('click', (ev) => { stop(ev); settingsPanel.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
-    back.addEventListener('click', (ev) => { stop(ev); setSummer(false); cups.classList.add('hidden'); modeMenu.classList.remove('hidden'); });
+    champ.addEventListener('click', (ev) => {
+      stop(ev); setSummer(false); modeMenu.classList.add('hidden'); cups.classList.remove('hidden');
+    });
+    free.addEventListener('click', (ev) => {
+      stop(ev); setSummer(false); requestAnimationFrame(() => title.click());
+    });
+    summerBack.addEventListener('click', (ev) => {
+      stop(ev); setSummer(false); summerPanel.classList.add('hidden'); refreshDifficultyCards(); difficultyPanel.classList.remove('hidden');
+    });
+    difficultyBack.addEventListener('click', (ev) => {
+      stop(ev); setSummer(false); difficultyPanel.classList.add('hidden'); cups.classList.remove('hidden');
+    });
+    garage.addEventListener('click', (ev) => {
+      stop(ev); const old = garage.textContent; garage.textContent = 'EM BREVE'; setTimeout(() => garage.textContent = old, 900);
+    });
+    settings.addEventListener('click', (ev) => {
+      stop(ev); modeMenu.classList.add('hidden'); settingsPanel.classList.remove('hidden');
+    });
+    settingsBack?.addEventListener('click', (ev) => {
+      stop(ev); settingsPanel.classList.add('hidden'); modeMenu.classList.remove('hidden');
+    });
+    back.addEventListener('click', (ev) => {
+      stop(ev); setSummer(false); cups.classList.add('hidden'); modeMenu.classList.remove('hidden');
+    });
 
     const oldPrompt = title.querySelector<HTMLElement>('.press-start');
     if (oldPrompt) oldPrompt.style.display = 'none';
     const legend = title.querySelector<HTMLElement>('.controls-legend');
     if (legend) legend.style.display = 'none';
+
+    // MainMenu remains the race launcher; this small sync only locks the cup's chosen stage/difficulty.
+    const syncTimer = window.setInterval(syncChampionshipTrackPanel, 160);
+    window.addEventListener('beforeunload', () => window.clearInterval(syncTimer), { once: true });
     return true;
   };
 
