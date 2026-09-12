@@ -62,6 +62,8 @@ installKartSpeedBump();
 
 // ---------------------------------------------------------------------------
 // Results audio guard: stop race engine/music from leaking behind result screens.
+// Keep advancing the ambience envelope with no karts so crowd/sea-like noise
+// fades out quickly instead of being frozen forever on the classification view.
 // ---------------------------------------------------------------------------
 function installResultAudioGuard(): void {
   const g = game();
@@ -76,7 +78,7 @@ function installResultAudioGuard(): void {
 
   audio.update = (dt, karts, playerKartId, camera) => {
     if (g.currentState === 'results') {
-      originalUpdate(0, [], -1, camera);
+      originalUpdate(0.1, [], -1, camera);
       return;
     }
     originalUpdate(dt, karts, playerKartId, camera);
@@ -132,8 +134,6 @@ function playVictoryCelebration(strength = 1): void {
     scheduleClap(ctx, dest, start + i * 0.105 + jitter, 0.12 * strength * (0.8 + Math.random() * 0.4));
   }
 
-  // Broad crowd roar under the claps, intentionally short so it never becomes
-  // another background-audio problem.
   const duration = 2.4;
   const frames = Math.floor(ctx.sampleRate * duration);
   const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
@@ -277,8 +277,6 @@ function openConqueredTrack(index: number): void {
   if (runtimeIndex < 0) return;
 
   const difficulty = getActiveDifficulty() ?? 'easy';
-  // Keep the official attempt intact. Replaying an already conquered track is
-  // practice only and cannot duplicate championship points.
   sessionStorage.setItem('rc-summer-practice', '1');
   sessionStorage.removeItem('rc-championship');
   sessionStorage.removeItem('rc-summer-race');
