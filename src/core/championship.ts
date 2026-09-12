@@ -1,6 +1,7 @@
 import type { Difficulty, RaceStanding, RaceSettings } from './types';
+import { SUMMER_CUP_TRACK_IDS } from '../track/tracks';
 
-export const SUMMER_TRACKS = ['summer_beach', 'summer_sunset', 'summer_tropical'] as const;
+export const SUMMER_TRACKS = SUMMER_CUP_TRACK_IDS;
 export const CHAMPIONSHIP_POINTS = [10, 8, 6, 5, 4, 3, 2, 1] as const;
 export const CHAMPIONSHIP_DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 export const CHAMPIONSHIP_STAGES_TOTAL = SUMMER_TRACKS.length;
@@ -51,7 +52,7 @@ export interface ChampionshipRun {
 }
 
 export interface ChampionshipSave {
-  version: 2;
+  version: 3;
   cupId: 'summer';
   activeDifficulty: Difficulty | null;
   runs: Record<Difficulty, ChampionshipRun>;
@@ -102,7 +103,7 @@ function freshRun(difficulty: Difficulty, cleared = false): ChampionshipRun {
 
 function freshSave(): ChampionshipSave {
   return {
-    version: 2,
+    version: 3,
     cupId: 'summer',
     activeDifficulty: null,
     runs: {
@@ -113,13 +114,26 @@ function freshSave(): ChampionshipSave {
   };
 }
 
-function sanitizeRun(value: Partial<ChampionshipRun> | undefined, difficulty: Difficulty): ChampionshipRun {
-  const run = freshRun(difficulty, !!value?.cleared);
-  run.currentStage = Math.max(0, Math.min(CHAMPIONSHIP_STAGES_TOTAL - 1, Number(value?.currentStage) || 0));
-  run.completed = !!value?.completed;
-  run.characterId = typeof value?.characterId === 'string' ? value.characterId : null;
-  run.results = Array.isArray(value?.results) ? value.results as ChampionshipRaceResult[] : [];
+function sanitizeRun(value: Partial<ChampionshipRun> | undefined, difficulty: Difficulty, fromVersion = 3): ChampionshipRun {
+  const oldResults = Array.isArray(value?.results)
+    ? (value!.results as ChampionshipRaceResult[]).filter((result) => result.stage >= 0 && result.stage < CHAMPIONSHIP_STAGES_TOTAL)
+    : [];
+  const lastStageDone = oldResults.reduce((max, result) => Math.max(max, result.stage), -1);
+  const wasLegacyThreeStageFinish = fromVersion < 3 && !!value?.completed && lastStageDone <= 2 && CHAMPIONSHIP_STAGES_TOTAL > 3;
+
+  const run = freshRun(difficulty, wasLegacyThreeStageFinish ? false : !!value?.cleared);
+  run.results = oldResults;
   run.totals = value?.totals && typeof value.totals === 'object' ? value.totals as Record<string, number> : {};
+  run.characterId = typeof value?.characterId === 'string' ? value.characterId : null;
+
+  if (wasLegacyThreeStageFinish) {
+    run.completed = false;
+    run.currentStage = Math.min(CHAMPIONSHIP_STAGES_TOTAL - 1, Math.max(0, lastStageDone + 1));
+  } else {
+    run.currentStage = Math.max(0, Math.min(CHAMPIONSHIP_STAGES_TOTAL - 1, Number(value?.currentStage) || 0));
+    run.completed = !!value?.completed && lastStageDone >= CHAMPIONSHIP_STAGES_TOTAL - 1;
+  }
+
   return run;
 }
 
@@ -127,21 +141,26 @@ export function loadChampionshipSave(): ChampionshipSave {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return freshSave();
-    const data = JSON.parse(raw) as Partial<ChampionshipSave>;
-    if (!data || data.version !== 2 || data.cupId !== 'summer') return freshSave();
+    const data = JSON.parse(raw) as Partial<ChampionshipSave> & { version?: number };
+    if (!data || (data.version !== 2 && data.version !== 3) || data.cupId !== 'summer') return freshSave();
+    const sourceVersion = data.version;
     const active = CHAMPIONSHIP_DIFFICULTIES.includes(data.activeDifficulty as Difficulty)
       ? data.activeDifficulty as Difficulty
       : null;
-    return {
-      version: 2,
+    const migrated: ChampionshipSave = {
+      version: 3,
       cupId: 'summer',
       activeDifficulty: active,
       runs: {
-        easy: sanitizeRun(data.runs?.easy, 'easy'),
-        normal: sanitizeRun(data.runs?.normal, 'normal'),
-        hard: sanitizeRun(data.runs?.hard, 'hard'),
+        easy: sanitizeRun(data.runs?.easy, 'easy', sourceVersion),
+        normal: sanitizeRun(data.runs?.normal, 'normal', sourceVersion),
+        hard: sanitizeRun(data.runs?.hard, 'hard', sourceVersion),
       },
     };
+    if (sourceVersion !== 3) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated)); } catch { /* ignore */ }
+    }
+    return migrated;
   } catch {
     return freshSave();
   }
