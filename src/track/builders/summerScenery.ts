@@ -51,24 +51,58 @@ function makeUmbrella(color: number): THREE.Group {
   return g;
 }
 
-function addWaterStrip(root: THREE.Group, sample: TrackSample, side: number, sunset: boolean): void {
+function makeCoastQuad(
+  sample: TrackSample,
+  side: number,
+  innerOffset: number,
+  outerOffset: number,
+  halfLength: number,
+  yOffset: number,
+  material: THREE.Material,
+): THREE.Mesh {
+  const p = sample.position;
+  const t = sample.tangent;
+  const b = sample.binormal;
+  const s = side;
+  const vertices = new Float32Array([
+    p.x - t.x * halfLength + b.x * s * innerOffset, p.y + yOffset, p.z - t.z * halfLength + b.z * s * innerOffset,
+    p.x + t.x * halfLength + b.x * s * innerOffset, p.y + yOffset, p.z + t.z * halfLength + b.z * s * innerOffset,
+    p.x + t.x * halfLength + b.x * s * outerOffset, p.y + yOffset, p.z + t.z * halfLength + b.z * s * outerOffset,
+    p.x - t.x * halfLength + b.x * s * outerOffset, p.y + yOffset, p.z - t.z * halfLength + b.z * s * outerOffset,
+  ]);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function addCoastStrip(root: THREE.Group, sample: TrackSample, side: number, sunset: boolean): void {
+  const sandMat = new THREE.MeshStandardMaterial({
+    color: sunset ? 0xd6a56f : 0xe8cf94,
+    roughness: 0.98,
+    metalness: 0,
+    side: THREE.DoubleSide,
+  });
   const waterMat = new THREE.MeshStandardMaterial({
     color: sunset ? 0x3177a8 : 0x1aa7c7,
     roughness: 0.28,
     metalness: 0.08,
     transparent: true,
     opacity: 0.92,
+    side: THREE.DoubleSide,
   });
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(72, 42), waterMat);
-  const yaw = Math.atan2(-sample.tangent.x, -sample.tangent.z);
-  water.rotation.set(-Math.PI / 2, 0, yaw);
-  water.position.set(
-    sample.position.x + sample.binormal.x * side * 34,
-    sample.position.y - 0.18,
-    sample.position.z + sample.binormal.z * side * 34,
-  );
-  water.receiveShadow = true;
-  root.add(water);
+
+  // The beach starts outside the barriers. The sea begins after the sand, so
+  // neither surface can overlap the driveable road even on tight bends.
+  const sandInner = sample.wallHalfWidth + 1.5;
+  const sandOuter = sample.wallHalfWidth + 8.5;
+  const waterInner = sandOuter;
+  const waterOuter = sample.wallHalfWidth + 31;
+  root.add(makeCoastQuad(sample, side, sandInner, sandOuter, 31, -0.05, sandMat));
+  root.add(makeCoastQuad(sample, side, waterInner, waterOuter, 31, -0.18, waterMat));
 }
 
 export function buildSummerScenery(ctx: BuildContext): THREE.Group {
@@ -82,10 +116,10 @@ export function buildSummerScenery(ctx: BuildContext): THREE.Group {
   const tropical = ctx.def.id === 'summer_tropical';
   const waterSide = tropical ? -1 : 1;
 
-  const waterSteps = tropical ? 10 : 8;
+  const waterSteps = tropical ? 14 : 12;
   for (let i = 0; i < waterSteps; i++) {
     ctx.cl.sample((i + 0.5) / waterSteps, sample);
-    addWaterStrip(root, sample, waterSide, sunset);
+    addCoastStrip(root, sample, waterSide, sunset);
   }
 
   const palmBase = makePalm();
