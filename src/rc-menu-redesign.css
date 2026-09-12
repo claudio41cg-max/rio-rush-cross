@@ -1,0 +1,28 @@
+/* RC Rush — apresentação/menu premium. Somente UI; não altera física, pistas ou corrida. */
+.panel-title-screen.rc-intro-stage .logo,
+.panel-title-screen.rc-intro-stage .logo-sub,
+.panel-title-screen.rc-intro-stage .coin-badge,
+.panel-title-screen.rc-intro-stage .version { opacity:0 !important; pointer-events:none; transform:translateY(-10px); transition:opacity .35s ease,transform .35s ease; }
+.panel-title-screen.rc-intro-stage .controls-legend { display:none !important; }
+.panel-title-screen.rc-intro-stage .press-start { inset:0 !important; display:flex !important; align-items:flex-end; justify-content:center; padding-bottom:9vh; pointer-events:none; background:linear-gradient(180deg,transparent 48%,rgba(4,7,18,.34) 100%); }
+.panel-title-screen.rc-intro-stage .press-start-text { display:inline-flex; align-items:center; justify-content:center; min-width:250px; padding:16px 30px; border:1px solid rgba(255,255,255,.42); border-radius:999px; background:rgba(5,9,24,.55); box-shadow:0 12px 40px rgba(0,0,0,.35),inset 0 0 24px rgba(255,255,255,.05); backdrop-filter:blur(12px); font-size:clamp(15px,2.2vw,23px); font-weight:900; letter-spacing:.18em; color:#fff; text-shadow:0 2px 12px #000; animation:rcStartPulse 1.7s ease-in-out infinite; }
+.panel-title-screen.rc-intro-stage .press-start-text::before { content:'▶'; margin-right:13px; color:#ffbd2e; font-size:.8em; }
+@keyframes rcStartPulse{0%,100%{transform:scale(1);box-shadow:0 12px 40px rgba(0,0,0,.35),0 0 0 rgba(255,177,32,0)}50%{transform:scale(1.035);box-shadow:0 12px 40px rgba(0,0,0,.35),0 0 28px rgba(255,177,32,.28)}}
+
+/* Menu que aparece depois do primeiro toque. */
+.panel-title-screen.rc-menu-stage .press-start,
+.panel-title-screen.rc-menu-stage .controls-legend { display:none !important; }
+.panel-title-screen.rc-menu-stage .logo { transform:scale(.72); transform-origin:top center; top:2.2vh !important; }
+.panel-title-screen.rc-menu-stage .logo-sub { top:22vh !important; font-size:clamp(10px,1.3vw,14px); letter-spacing:.38em; }
+.panel-title-screen.rc-menu-stage .coin-badge { top:3vh !important; right:3vw !important; }
+.panel-title-screen.rc-menu-stage .version { opacity:.42; }
+.panel-title-screen.rc-menu-stage .rc-mode-menu { width:min(720px,78vw) !important; max-width:78vw !important; top:auto !important; bottom:7vh !important; left:50% !important; transform:translateX(-50%) !important; padding:14px !important; border:1px solid rgba(255,255,255,.16); border-radius:28px; background:linear-gradient(145deg,rgba(8,13,31,.82),rgba(17,22,48,.68)); box-shadow:0 22px 65px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.08); backdrop-filter:blur(18px); }
+.panel-title-screen.rc-menu-stage .rc-mode-title { font-size:clamp(15px,2vw,22px) !important; letter-spacing:.22em !important; margin:0 0 11px !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-buttons { display:grid !important; grid-template-columns:1.45fr 1fr .54fr .54fr !important; gap:9px !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn { min-height:64px !important; border-radius:19px !important; padding:10px 14px !important; font-size:clamp(12px,1.45vw,17px) !important; border:1px solid rgba(255,255,255,.15) !important; background:rgba(17,25,53,.76) !important; box-shadow:none !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn.rc-mode-primary { background:linear-gradient(120deg,#ffb11f,#ff5c4e) !important; box-shadow:0 8px 30px rgba(255,102,48,.22) !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(3),
+.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(4) { font-size:0 !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(3)::after { content:'🔧'; font-size:24px; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(4)::after { content:'⚙'; font-size:25px; }
+@media(max-height:520px){.panel-title-screen.rc-intro-stage .press-start{padding-bottom:6vh}.panel-title-screen.rc-menu-stage .logo{transform:scale(.57);top:1vh!important}.panel-title-screen.rc-menu-stage .logo-sub{display:none}.panel-title-screen.rc-menu-stage .rc-mode-menu{bottom:4vh!important;padding:10px!important}.panel-title-screen.rc-menu-stage .rc-mode-btn{min-height:54px!important}.panel-title-screen.rc-menu-stage .rc-mode-title{margin-bottom:7px!important}}
