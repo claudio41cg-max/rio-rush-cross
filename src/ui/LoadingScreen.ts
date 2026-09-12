@@ -21,7 +21,7 @@ const TIPS: readonly string[] = [
   'Pressione M para silenciar o áudio a qualquer momento.',
 ];
 
-const THEME_LABEL: Record<string,string> = { grassland:'CAMPO', desert:'DESERTO', snow:'NEVE', neon:'NEON' };
+const THEME_LABEL: Record<string,string> = { grassland:'CAMPO', desert:'DESERTO', snow:'NEVE', neon:'NEON', beach:'PRAIA' };
 const TIP_INTERVAL = 2.4;
 
 export class LoadingScreen {
@@ -55,7 +55,11 @@ export class LoadingScreen {
 
   show(def: TrackDefinition): void {
     this.title.set(def.name.toUpperCase());
-    const stars = '★'.repeat(def.difficulty) + '☆'.repeat(3 - def.difficulty);
+    // Some championship finals intentionally use difficulty 4+. Never pass a
+    // negative count to String.repeat when rendering the difficulty stars.
+    const difficulty = Math.max(0, Math.min(5, Math.floor(Number(def.difficulty) || 0)));
+    const starSlots = Math.max(3, difficulty);
+    const stars = '★'.repeat(difficulty) + '☆'.repeat(Math.max(0, starSlots - difficulty));
     this.subtitle.set(`${def.laps} VOLTAS  ·  ${stars}  ·  ${THEME_LABEL[def.theme] ?? def.theme.toUpperCase()}`);
     const env = def.environment;
     this.band.style.background = `linear-gradient(90deg, ${cssHex(env.skyTop)}, ${cssHex(env.skyHorizon)}, ${cssHex(
