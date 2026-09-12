@@ -2,6 +2,7 @@ import type { Difficulty } from '../core/types';
 import { el } from './dom';
 import {
   beginChampionshipStage,
+  CHAMPIONSHIP_STAGES_TOTAL,
   championshipDifficultyStatus,
   DIFFICULTY_COIN_LABEL,
   DIFFICULTY_LABEL,
@@ -12,9 +13,11 @@ import {
 } from '../core/championship';
 
 const SUMMER_TRACK_IDS = SUMMER_TRACKS;
+const SUMMER_TRACK_NAMES = ['PRAIA AO MEIO-DIA', 'CAIS DA BRISA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL', 'PONTA DO FAROL'];
+const SUMMER_TRACK_LABELS = ['☀️ Praia ao Meio-Dia', '⚓ Cais da Brisa', '🌅 Orla do Pôr do Sol', '🌴 Costa Tropical', '🗼 Ponta do Farol'];
 const RACE_SONGS = ['SUMMER DRIVE', 'BEACH RUNNERS', 'SUNSET RACE', 'TROPICAL VIBES', 'NIGHT SPEED'];
 const CUPS = [
-  { icon: '☀️', name: 'COPA VERÃO', sub: '3 pistas costeiras', state: 'ABERTA', cls: 'summer' },
+  { icon: '☀️', name: 'COPA VERÃO', sub: '5 pistas costeiras', state: 'ABERTA', cls: 'summer' },
   { icon: '❄️', name: 'COPA INVERNO', sub: '3 pistas geladas', state: 'BLOQUEADA', cls: 'winter' },
   { icon: '🌙', name: 'COPA DA NOITE', sub: '3 pistas noturnas', state: 'BLOQUEADA', cls: 'night' },
   { icon: '🏜️', name: 'COPA DO DESERTO', sub: '3 pistas quentes', state: 'BLOQUEADA', cls: 'desert' },
@@ -61,7 +64,10 @@ function syncChampionshipTrackPanel(): void {
   if (sessionStorage.getItem('rc-championship') !== 'summer') return;
   const difficulty = getActiveDifficulty();
   if (!difficulty) return;
-  const stage = Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+  const stage = Math.max(
+    0,
+    Math.min(CHAMPIONSHIP_STAGES_TOTAL - 1, Number(sessionStorage.getItem('rc-summer-race') ?? '0')),
+  );
   document.body.dataset.rcSummerStage = String(stage);
 
   const m = menu();
@@ -87,14 +93,14 @@ function syncChampionshipTrackPanel(): void {
   const trackCards = Array.from(panel.querySelectorAll<HTMLElement>('.track-card'));
   trackCards.forEach((card) => {
     const name = card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() ?? '';
-    if (!['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL'].includes(name)) return;
+    if (!SUMMER_TRACK_NAMES.includes(name)) return;
     card.querySelector('.rc-champ-track-note')?.remove();
   });
-  const selectedName = ['PRAIA AO MEIO-DIA', 'ORLA DO PÔR DO SOL', 'COSTA TROPICAL'][stage];
+  const selectedName = SUMMER_TRACK_NAMES[stage];
   const selected = trackCards.find((card) => card.querySelector<HTMLElement>('.card-name')?.textContent?.trim().toUpperCase() === selectedName);
   if (selected) {
-    const note = el('div', 'rc-champ-track-note', `ETAPA ${stage + 1}/3 · ${DIFFICULTY_LABEL[difficulty]}`, selected);
-    note.setAttribute('aria-label', `Etapa ${stage + 1} de 3, dificuldade ${DIFFICULTY_LABEL[difficulty]}`);
+    const note = el('div', 'rc-champ-track-note', `ETAPA ${stage + 1}/${CHAMPIONSHIP_STAGES_TOTAL} · ${DIFFICULTY_LABEL[difficulty]}`, selected);
+    note.setAttribute('aria-label', `Etapa ${stage + 1} de ${CHAMPIONSHIP_STAGES_TOTAL}, dificuldade ${DIFFICULTY_LABEL[difficulty]}`);
   }
 }
 
@@ -181,7 +187,6 @@ export function installChampionshipPreview(): void {
     const summerKicker = el('div', 'rc-cups-kicker', 'COPA VERÃO', summerPanel);
     el('div', 'rc-cups-title', 'ETAPAS DA COPA VERÃO', summerPanel);
     const summerTracks = el('div', 'rc-summer-track-list', undefined, summerPanel);
-    const names = ['☀️ Praia ao Meio-Dia', '🌅 Orla do Pôr do Sol', '🌴 Costa Tropical'];
     const trackButtons: HTMLButtonElement[] = [];
 
     const refreshDifficultyCards = (): void => {
@@ -195,7 +200,7 @@ export function installChampionshipPreview(): void {
           state.textContent = status.cleared
             ? '🏆 CAMPEÃO · JOGAR NOVAMENTE'
             : status.racesDone > 0 && !status.completed
-              ? `CONTINUAR · ETAPA ${status.currentStage + 1}/3`
+              ? `CONTINUAR · ETAPA ${status.currentStage + 1}/${CHAMPIONSHIP_STAGES_TOTAL}`
               : 'COMEÇAR CAMPEONATO';
         }
       });
@@ -247,7 +252,7 @@ export function installChampionshipPreview(): void {
     });
     refreshDifficultyCards();
 
-    names.forEach((name, i) => {
+    SUMMER_TRACK_LABELS.forEach((name, i) => {
       const item = el('button', 'rc-summer-track', undefined, summerTracks) as HTMLButtonElement;
       item.type = 'button';
       el('b', '', `ETAPA ${i + 1}`, item);
