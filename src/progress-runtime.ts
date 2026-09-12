@@ -12,7 +12,7 @@ import {
 } from './core/progress';
 
 const CHARACTER_IDS = ['zippy', 'pixel', 'fennec', 'max', 'juno', 'kai', 'bram', 'rosa'] as const;
-const TRACK_IDS = ['sunny_circuit', 'dune_drift', 'frostbite_falls', 'neon_nexus', 'coastal_rush', 'summer_beach', 'summer_sunset', 'summer_tropical'] as const;
+const TRACK_IDS = ['sunny_circuit', 'dune_drift', 'frostbite_falls', 'neon_nexus', 'coastal_rush', 'summer_beach', 'summer_harbor', 'summer_sunset', 'summer_tropical', 'summer_lighthouse'] as const;
 
 function ensureBadge(): void {
   const title = document.querySelector<HTMLElement>('.panel-title-screen');
