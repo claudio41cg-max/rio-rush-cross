@@ -42,10 +42,6 @@ function difficultyIndex(value: string | null): number {
   return value === 'easy' ? 0 : value === 'hard' ? 2 : 1;
 }
 
-// ---------------------------------------------------------------------------
-// Slightly faster karts without touching the stable physics constants.
-// All karts receive the same +8%, so balance between player and AI stays intact.
-// ---------------------------------------------------------------------------
 const SPEED_MULTIPLIER = 1.08;
 let speedPatched = false;
 function installKartSpeedBump(): void {
@@ -60,11 +56,6 @@ function installKartSpeedBump(): void {
 }
 installKartSpeedBump();
 
-// ---------------------------------------------------------------------------
-// Results audio guard: stop race engine/music from leaking behind result screens.
-// Keep advancing the ambience envelope with no karts so crowd/sea-like noise
-// fades out quickly instead of being frozen forever on the classification view.
-// ---------------------------------------------------------------------------
 function installResultAudioGuard(): void {
   const g = game();
   const audio = g?.audio;
@@ -94,10 +85,6 @@ function installResultAudioGuard(): void {
 }
 installResultAudioGuard();
 
-// ---------------------------------------------------------------------------
-// Victory celebration: keep the existing finish fanfare and add a stronger
-// crowd/applause layer. It uses the already-running game AudioContext.
-// ---------------------------------------------------------------------------
 function scheduleClap(ctx: AudioContext, dest: AudioNode, when: number, gain: number): void {
   const frames = Math.max(1, Math.floor(ctx.sampleRate * 0.075));
   const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
@@ -180,9 +167,6 @@ function syncChampionCelebration(): void {
 }
 requestAnimationFrame(syncChampionCelebration);
 
-// ---------------------------------------------------------------------------
-// Copa Verão one-flow: track -> kart -> race, without reopening generic tracks.
-// ---------------------------------------------------------------------------
 let flowPatched = false;
 function installChampionshipOneFlow(): void {
   if (flowPatched) return;
@@ -212,11 +196,6 @@ function installChampionshipOneFlow(): void {
 }
 installChampionshipOneFlow();
 
-// ---------------------------------------------------------------------------
-// Permanent track progress is independent for Easy / Medium / Hard.
-// Existing saves are migrated by inferring the furthest stage actually reached
-// in each difficulty. Global free-race unlocks no longer leak across difficulties.
-// ---------------------------------------------------------------------------
 const DIFFICULTY_UNLOCK_KEY = 'rc-summer-unlocked-by-difficulty-v1';
 type DifficultyUnlocks = Record<Difficulty, number>;
 
@@ -323,9 +302,6 @@ document.addEventListener('click', (event) => {
   openConqueredTrack(index);
 }, true);
 
-// ---------------------------------------------------------------------------
-// Never expose internal kart colours as driver names on result tables.
-// ---------------------------------------------------------------------------
 const DRIVER_NAMES: Record<string, string> = {
   VERMELHO: 'Lucas',
   AZUL: 'Mateo',
@@ -337,6 +313,18 @@ const DRIVER_NAMES: Record<string, string> = {
   PRETO: 'Mila',
 };
 
+const DRIVER_FLAGS: Record<string, string> = {
+  'CLÁUDIO': '🇧🇷',
+  LUCAS: '🇧🇷',
+  MATEO: '🇦🇷',
+  ETHAN: '🇺🇸',
+  SOFIA: '🇪🇸',
+  NOAH: '🇬🇧',
+  KENJI: '🇯🇵',
+  ENZO: '🇮🇹',
+  MILA: '🇩🇪',
+};
+
 function syncDriverNamesAndVictoryCopy(): void {
   const names = document.querySelectorAll<HTMLElement>('.standing-name, .champ-pilot');
   names.forEach((node) => {
@@ -344,14 +332,33 @@ function syncDriverNamesAndVictoryCopy(): void {
     if (!text) return;
     if (text.includes('(VOCÊ)')) {
       node.textContent = 'CLÁUDIO (VOCÊ)';
-      return;
-    }
-    const upper = text.toUpperCase();
-    for (const [colour, driver] of Object.entries(DRIVER_NAMES)) {
-      if (upper === colour || upper.startsWith(`${colour} `)) {
-        node.textContent = driver;
-        break;
+    } else {
+      const upper = text.toUpperCase();
+      for (const [colour, driver] of Object.entries(DRIVER_NAMES)) {
+        if (upper === colour || upper.startsWith(`${colour} `)) {
+          node.textContent = driver;
+          break;
+        }
       }
+    }
+
+    // Free-race results used a coloured square beside each pilot. Replace that
+    // internal kart-colour marker with the pilot's country flag so the screen
+    // reads as people/characters instead of colour-coded cars.
+    const row = node.closest<HTMLElement>('.standing-row');
+    const chip = row?.querySelector<HTMLElement>('.standing-chip');
+    if (chip) {
+      const driverKey = (node.textContent ?? '').replace('(VOCÊ)', '').trim().toUpperCase();
+      chip.textContent = DRIVER_FLAGS[driverKey] ?? '🏁';
+      chip.style.background = 'transparent';
+      chip.style.width = '22px';
+      chip.style.height = '18px';
+      chip.style.borderRadius = '0';
+      chip.style.display = 'inline-flex';
+      chip.style.alignItems = 'center';
+      chip.style.justifyContent = 'center';
+      chip.style.fontSize = '16px';
+      chip.style.lineHeight = '1';
     }
   });
 
