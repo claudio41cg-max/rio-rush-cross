@@ -1,34 +1,43 @@
-/* RC Rush — nova abertura em duas etapas. UI-only compatibility layer. */
-function installMenuRedesign(): void {
+/* RC Rush — abertura em duas etapas. UI-only; não toca no motor do jogo. */
+let installed = false;
+
+function activateIntro(): boolean {
+  if (installed) return true;
   const title = document.querySelector<HTMLElement>('.panel-title-screen');
-  if (!title) { window.setTimeout(installMenuRedesign, 80); return; }
-  if (title.dataset.rcRedesign === '1') return;
+  const modeMenu = title?.querySelector<HTMLElement>('.rc-mode-menu');
+  if (!title || !modeMenu) return false;
+
+  installed = true;
   title.dataset.rcRedesign = '1';
-
-  const modeMenu = title.querySelector<HTMLElement>('.rc-mode-menu');
-  if (!modeMenu) { title.dataset.rcRedesign = ''; window.setTimeout(installMenuRedesign, 80); return; }
-
   title.classList.add('rc-intro-stage');
-  modeMenu.classList.add('hidden');
+  title.classList.remove('rc-menu-stage');
+  modeMenu.classList.add('rc-premium-hidden');
+
   const prompt = title.querySelector<HTMLElement>('.press-start-text');
   if (prompt) prompt.textContent = 'TOQUE PARA INICIAR';
 
   const openMenu = (event: Event): void => {
     if (!title.classList.contains('rc-intro-stage')) return;
     event.preventDefault();
-    event.stopImmediatePropagation();
+    event.stopPropagation();
+    if ('stopImmediatePropagation' in event) event.stopImmediatePropagation();
     title.classList.remove('rc-intro-stage');
     title.classList.add('rc-menu-stage');
-    modeMenu.classList.remove('hidden');
-    window.dispatchEvent(new CustomEvent('rc:premium-menu-open'));
+    modeMenu.classList.remove('rc-premium-hidden');
   };
-  title.addEventListener('click', openMenu, true);
-  title.addEventListener('pointerup', openMenu, true);
 
-  // Se outra tela do menu abrir, remove o modo de apresentação sem interferir na navegação existente.
-  const observer = new MutationObserver(() => {
-    if (!title.classList.contains('active')) title.classList.remove('rc-intro-stage','rc-menu-stage');
-  });
-  observer.observe(title, { attributes:true, attributeFilter:['class'] });
+  title.addEventListener('pointerdown', openMenu, true);
+  title.addEventListener('click', openMenu, true);
+  return true;
 }
-installMenuRedesign();
+
+// O menu de modos é criado depois pelo ChampionshipPreview. Observamos o DOM
+// em vez de depender da ordem/tempo dos módulos no Android.
+if (!activateIntro()) {
+  const observer = new MutationObserver(() => {
+    if (activateIntro()) observer.disconnect();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  window.setTimeout(() => { if (!installed) activateIntro(); }, 500);
+  window.setTimeout(() => { if (!installed) activateIntro(); }, 1500);
+}
