@@ -2,6 +2,7 @@
  * Persistent player progress (localStorage).
  * Coins, unlocks, stats — works offline and is free.
  */
+import { SUMMER_CUP_TRACK_IDS } from '../track/tracks';
 
 export interface ProgressData {
   version: 1;
@@ -19,7 +20,7 @@ export interface ProgressData {
 }
 
 const STORAGE_KEY = 'rc-rush-progress-v1';
-const SUMMER_CHAMPIONSHIP_TRACKS = ['summer_beach', 'summer_sunset', 'summer_tropical'] as const;
+const SUMMER_CHAMPIONSHIP_TRACKS = SUMMER_CUP_TRACK_IDS;
 
 /** Starting unlocks — first karts and tracks free so the player can race immediately. */
 const DEFAULT_CHARACTERS = ['zippy', 'pixel', 'fennec', 'max'];
@@ -42,10 +43,12 @@ export const TRACK_COST: Record<string, number> = {
   dune_drift: 0,
   coastal_rush: 0,
   summer_beach: 0,
+  summer_harbor: 280,
   frostbite_falls: 200,
   neon_nexus: 300,
   summer_sunset: 350,
   summer_tropical: 400,
+  summer_lighthouse: 450,
 };
 
 /** Coins awarded by place (1st … 8th). Multiplied by difficulty. */
@@ -106,7 +109,10 @@ export function isCharacterUnlocked(id: string): boolean {
 
 export function isTrackUnlocked(id: string): boolean {
   if (sessionStorage.getItem('rc-championship') === 'summer') {
-    const stage = Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+    const stage = Math.max(
+      0,
+      Math.min(SUMMER_CHAMPIONSHIP_TRACKS.length - 1, Number(sessionStorage.getItem('rc-summer-race') ?? '0')),
+    );
     if (SUMMER_CHAMPIONSHIP_TRACKS[stage] === id) return true;
   }
   const p = getProgress();
