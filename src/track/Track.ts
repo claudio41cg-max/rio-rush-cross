@@ -35,7 +35,7 @@ export class Track implements ITrack {
   const cleanCoastal=def.id==='coastal_rush';
   const specialSummer=def.id==='summer_beach'||def.id==='summer_sunset'||def.id==='summer_tropical';
   if(!cleanCoastal&&!specialSummer){ root.add(buildDecorations(ctx)); root.add(buildLandmarks(ctx)); }
-  if(!cleanCoastal){ root.add(buildGrandstands(ctx)); root.add(buildGantry(ctx)); root.add(buildSponsorBridges(ctx)); root.add(buildAnimatedProps(ctx)); }
+  if(!cleanCoastal){ if(def.id!=='summer_sunset') root.add(buildGrandstands(ctx)); root.add(buildGantry(ctx)); root.add(buildSponsorBridges(ctx)); root.add(buildAnimatedProps(ctx)); }
   if(specialSummer) root.add(buildSummerScenery(ctx));
   const pads:BoostPadInfo[]=[]; const padGroup=buildBoostPads(ctx,pads); if(padGroup) root.add(padGroup); this.boostPads=pads; this.boostPadHalfWidths=new Float64Array(this.boostPadTs.length); for(let i=0;i<pads.length&&i<this.boostPadHalfWidths.length;i++) this.boostPadHalfWidths[i]=pads[i].halfWidth;
   this.object=root;
