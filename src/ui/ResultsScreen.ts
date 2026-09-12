@@ -6,6 +6,7 @@ import type { InputState, RaceSettings, RaceStanding } from '../core/types';
 import type { RaceReward } from '../core/progress';
 import {
   beginChampionshipStage,
+  CHAMPIONSHIP_STAGES_TOTAL,
   championshipLeaderboard,
   championshipPoints,
   DIFFICULTY_LABEL,
@@ -27,8 +28,17 @@ const CONFETTI_COLORS = ['#ffd23f', '#ff3ab8', '#37a8ff', '#7cff6b', '#ff7a2f', 
 const COIN_ANIM_MS = 1100;
 const TRACK_LABELS: Record<string, string> = {
   summer_beach: 'PRAIA AO MEIO-DIA',
+  summer_harbor: 'CAIS DA BRISA',
   summer_sunset: 'ORLA DO PÔR DO SOL',
   summer_tropical: 'COSTA TROPICAL',
+  summer_lighthouse: 'PONTA DO FAROL',
+};
+const TRACK_ART: Record<string, string> = {
+  summer_beach: '☀️',
+  summer_harbor: '⚓',
+  summer_sunset: '🌅',
+  summer_tropical: '🌴',
+  summer_lighthouse: '🗼',
 };
 
 type ChampionshipView = 'race' | 'table' | 'final';
@@ -123,7 +133,10 @@ export class ResultsScreen {
     const player = standings.find((s) => s.isPlayer);
     this.playerPlace = player?.place ?? standings.length;
     this.championshipMode = sessionStorage.getItem('rc-championship') === 'summer';
-    this.championshipStage = Math.max(0, Math.min(2, Number(sessionStorage.getItem('rc-summer-race') ?? '0')));
+    this.championshipStage = Math.max(
+      0,
+      Math.min(CHAMPIONSHIP_STAGES_TOTAL - 1, Number(sessionStorage.getItem('rc-summer-race') ?? '0')),
+    );
     this.championshipView = 'race';
 
     if (this.championshipMode) {
@@ -176,6 +189,7 @@ export class ResultsScreen {
     const trackName = currentSettings ? TRACK_LABELS[currentSettings.trackId] ?? currentSettings.trackId.toUpperCase() : '';
     const player = this.lastStandings.find((s) => s.isPlayer);
     const playerTime = player?.finishTime ?? 0;
+    const lastStage = this.championshipStage >= CHAMPIONSHIP_STAGES_TOTAL - 1;
 
     this.championshipView = 'race';
     this.panel.classList.remove('champ-table-view', 'champ-final-view');
@@ -185,7 +199,7 @@ export class ResultsScreen {
     this.panel.classList.toggle('results-win', won);
     this.panel.classList.toggle('results-podium', this.playerPlace > 1 && this.playerPlace <= 3);
 
-    this.kicker.textContent = `COPA VERÃO · ETAPA ${this.championshipStage + 1}/3`;
+    this.kicker.textContent = `COPA VERÃO · ETAPA ${this.championshipStage + 1}/${CHAMPIONSHIP_STAGES_TOTAL}`;
     this.difficultyBadge.style.display = '';
     this.difficultyBadge.textContent = `🏁 ${DIFFICULTY_LABEL[difficulty]}`;
     this.trackLabel.style.display = '';
@@ -221,7 +235,7 @@ export class ResultsScreen {
     this.pointsLine.innerHTML = `<strong>⭐ +${championshipPoints(this.playerPlace)} PONTOS</strong><span>para o campeonato</span>`;
 
     this.firstButton.textContent = 'VER CLASSIFICAÇÃO DA COPA';
-    this.secondButton.textContent = this.championshipStage >= 2 ? 'VER RESULTADO DA COPA' : 'PRÓXIMA CORRIDA';
+    this.secondButton.textContent = lastStage ? 'VER RESULTADO DA COPA' : 'PRÓXIMA CORRIDA';
     this.menuButton.textContent = 'MENU';
     this.firstButton.style.display = '';
     this.secondButton.style.display = '';
@@ -249,7 +263,7 @@ export class ResultsScreen {
     this.difficultyBadge.style.display = '';
     this.difficultyBadge.textContent = `🏁 ${DIFFICULTY_LABEL[difficulty]}`;
     this.trackLabel.style.display = '';
-    this.trackLabel.textContent = `CLASSIFICAÇÃO DO CAMPEONATO · APÓS A ETAPA ${this.championshipStage + 1}/3`;
+    this.trackLabel.textContent = `CLASSIFICAÇÃO DO CAMPEONATO · APÓS A ETAPA ${this.championshipStage + 1}/${CHAMPIONSHIP_STAGES_TOTAL}`;
     this.heading.set('CLASSIFICAÇÃO DA COPA');
     this.subheading.set('Pontos da etapa e total acumulado de cada piloto.');
     this.rewardLine.style.display = 'none';
@@ -261,7 +275,7 @@ export class ResultsScreen {
     this.buildNextStageAside();
 
     this.firstButton.textContent = 'VOLTAR AO RESULTADO';
-    this.secondButton.textContent = this.championshipStage >= 2 ? 'VER RESULTADO FINAL' : 'PRÓXIMA CORRIDA';
+    this.secondButton.textContent = this.championshipStage >= CHAMPIONSHIP_STAGES_TOTAL - 1 ? 'VER RESULTADO FINAL' : 'PRÓXIMA CORRIDA';
     this.menuButton.textContent = 'MENU';
   }
 
@@ -299,7 +313,7 @@ export class ResultsScreen {
     this.contentWrap.style.display = '';
     this.table.style.display = '';
     this.aside.style.display = '';
-    const lastResult = cup.results.find((result) => result.stage === 2);
+    const lastResult = cup.results.find((result) => result.stage === CHAMPIONSHIP_STAGES_TOTAL - 1);
     this.buildChampionshipTable(leaderboard, lastResult?.standings ?? [], true);
     this.buildFinalAside(rank, player?.points ?? 0, player?.wins ?? 0, difficulty);
 
@@ -338,17 +352,18 @@ export class ResultsScreen {
 
   private buildNextStageAside(): void {
     this.aside.replaceChildren();
-    if (this.championshipStage >= 2) {
+    if (this.championshipStage >= CHAMPIONSHIP_STAGES_TOTAL - 1) {
       el('div', 'champ-aside-title', '🏆 ÚLTIMA ETAPA CONCLUÍDA', this.aside);
       el('div', 'champ-aside-big', 'RESULTADO FINAL', this.aside);
       el('p', '', 'Veja quem somou mais pontos e conquistou a Copa Verão.', this.aside);
       return;
     }
     const nextStage = this.championshipStage + 1;
+    const nextTrack = SUMMER_TRACKS[nextStage];
     el('div', 'champ-aside-title', '🏁 PRÓXIMA ETAPA', this.aside);
-    el('div', 'champ-next-art', nextStage === 1 ? '🌅' : '🌴', this.aside);
-    el('div', 'champ-aside-big', TRACK_LABELS[SUMMER_TRACKS[nextStage]] ?? `ETAPA ${nextStage + 1}`, this.aside);
-    el('p', '', `ETAPA ${nextStage + 1}/3 · 3 VOLTAS`, this.aside);
+    el('div', 'champ-next-art', TRACK_ART[nextTrack] ?? '🏁', this.aside);
+    el('div', 'champ-aside-big', TRACK_LABELS[nextTrack] ?? `ETAPA ${nextStage + 1}`, this.aside);
+    el('p', '', `ETAPA ${nextStage + 1}/${CHAMPIONSHIP_STAGES_TOTAL} · 3 VOLTAS`, this.aside);
     el('small', '', 'Mesmo carro e mesma dificuldade.', this.aside);
   }
 
@@ -357,7 +372,7 @@ export class ResultsScreen {
     el('div', 'champ-aside-title', 'RESUMO DA COPA', this.aside);
     const summary = el('div', 'champ-final-summary', undefined, this.aside);
     el('div', '', `🏁 DIFICULDADE  ${DIFFICULTY_LABEL[difficulty]}`, summary);
-    el('div', '', '🏎️ ETAPAS  3/3', summary);
+    el('div', '', `🏎️ ETAPAS  ${CHAMPIONSHIP_STAGES_TOTAL}/${CHAMPIONSHIP_STAGES_TOTAL}`, summary);
     el('div', '', `⭐ VITÓRIAS  ${wins}`, summary);
     el('div', '', `🏆 POSIÇÃO FINAL  ${rank}º`, summary);
     el('div', '', `📊 PONTOS  ${points}`, summary);
@@ -460,7 +475,7 @@ export class ResultsScreen {
         return;
       }
       if (i === 1) {
-        if (this.championshipStage >= 2) this.renderChampionshipFinal();
+        if (this.championshipStage >= CHAMPIONSHIP_STAGES_TOTAL - 1) this.renderChampionshipFinal();
         else this.startNextChampionshipRace();
         this.focus.set(0);
       }
@@ -474,7 +489,7 @@ export class ResultsScreen {
         return;
       }
       if (i === 1) {
-        if (this.championshipStage >= 2) this.renderChampionshipFinal();
+        if (this.championshipStage >= CHAMPIONSHIP_STAGES_TOTAL - 1) this.renderChampionshipFinal();
         else this.startNextChampionshipRace();
         this.focus.set(0);
       }
