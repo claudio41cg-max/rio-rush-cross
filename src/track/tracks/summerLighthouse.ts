@@ -2,7 +2,7 @@ import type { TrackDefinition } from '../../core/types';
 
 /**
  * Copa Verão 5/5 — Ponta do Farol
- * Final de campeonato: península com mais elevação, sequência técnica e reta de boost.
+ * Final da copa: subida de península, hairpin técnico e descida longa com boost.
  */
 export const summerLighthouse: TrackDefinition = {
   id: 'summer_lighthouse',
@@ -10,36 +10,36 @@ export const summerLighthouse: TrackDefinition = {
   theme: 'beach',
   laps: 3,
   description:
-    'Ponta rochosa com farol ao fundo: subidas, uma sequência apertada e uma reta longa de boost até a chegada.',
+    'Final da Copa Verão: subida forte até o farol, hairpin no alto, descida rápida e reta final com boost.',
   difficulty: 4,
   controlPoints: [
     { x: 0, y: 0, z: 0 },
-    { x: -10, y: 0, z: -82 },
-    { x: 8, y: 0.6, z: -162 },
-    { x: 48, y: 1.6, z: -220 },
-    { x: 108, y: 3.0, z: -255 },
-    { x: 175, y: 4.6, z: -245 },
-    { x: 228, y: 5.5, z: -200 },
-    { x: 255, y: 5.2, z: -140 },
-    { x: 258, y: 4.0, z: -75 },
-    { x: 235, y: 2.8, z: -20 },
-    { x: 200, y: 2.0, z: 30 },
-    { x: 215, y: 2.4, z: 85 },
-    { x: 200, y: 2.0, z: 140 },
-    { x: 160, y: 1.3, z: 180 },
-    { x: 105, y: 0.7, z: 200 },
-    { x: 50, y: 0.2, z: 190 },
-    { x: 12, y: 0, z: 155 },
-    { x: -12, y: 0, z: 105 },
-    { x: -20, y: 0, z: 52 },
+    { x: -14, y: 0, z: -88 },
+    { x: 12, y: 4, z: -174 },
+    { x: 72, y: 10, z: -238 },
+    { x: 145, y: 17, z: -270 },
+    { x: 220, y: 24, z: -242 },
+    { x: 270, y: 28, z: -178 },
+    { x: 262, y: 26, z: -112 },
+    { x: 220, y: 22, z: -68 },
+    { x: 168, y: 17, z: -86 },
+    { x: 125, y: 15, z: -50 },
+    { x: 142, y: 20, z: 15 },
+    { x: 205, y: 24, z: 62 },
+    { x: 252, y: 20, z: 126 },
+    { x: 222, y: 14, z: 196 },
+    { x: 158, y: 9, z: 236 },
+    { x: 84, y: 4, z: 224 },
+    { x: 24, y: 1, z: 170 },
+    { x: -22, y: 0, z: 92 },
   ],
   halfWidth: 8.1,
   halfWidths: [
-    8.5, 8.5, 8.3, 8.1, 8.0, 8.0, 8.1, 8.3, 8.4, 8.2, 8.1, 8.1, 8.2, 8.4, 8.5, 8.5, 8.4, 8.3, 8.4,
+    8.5, 8.5, 8.3, 8.0, 7.9, 7.8, 7.8, 7.9, 8.0, 7.8, 7.7, 7.8, 8.0, 8.2, 8.4, 8.5, 8.5, 8.4, 8.4,
   ],
   wallHalfWidthFactor: 1.58,
   itemBoxRows: [0.1, 0.32, 0.55, 0.78],
-  boostPads: [0.2, 0.45, 0.72, 0.93],
+  boostPads: [0.16, 0.38, 0.66, 0.9],
   environment: {
     skyTop: 0x1a4f8c,
     skyHorizon: 0xff8f5a,
