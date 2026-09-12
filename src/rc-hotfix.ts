@@ -1,6 +1,6 @@
-import type { Difficulty } from './core/types';
+import type { Difficulty, RaceSettings } from './core/types';
 import { events } from './core/events';
-import { getActiveDifficulty, loadChampionship, SUMMER_TRACKS } from './core/championship';
+import { CHAMPIONSHIP_STAGES_TOTAL, getActiveDifficulty, loadChampionship, SUMMER_TRACKS } from './core/championship';
 import { Kart } from './kart/Kart';
 
 type AudioRuntime = {
@@ -12,11 +12,17 @@ type AudioRuntime = {
   crowd?: { cheerBurst(strength: number): void } | null;
 };
 
-type MenuTrack = { id?: string };
+type MenuTrack = { id?: string; laps?: number };
+type MenuCharacter = { id?: string };
 
 type MenuRuntime = {
   currentPanel?: 'title' | 'characterSelect' | 'trackSelect';
   tracks?: MenuTrack[];
+  characters?: MenuCharacter[];
+  trackIndex?: number;
+  charIndex?: number;
+  difficultyIndex?: number;
+  onStart?: ((settings: RaceSettings) => void) | null;
   setTrack?: (index: number, sound?: boolean) => void;
   setDifficulty?: (index: number, sound?: boolean) => void;
   goTo?: (panel: 'title' | 'characterSelect' | 'trackSelect', sound: boolean) => void;
@@ -167,17 +173,50 @@ function syncChampionCelebration(): void {
 }
 requestAnimationFrame(syncChampionCelebration);
 
+function isSummerTrack(id: string | undefined): boolean {
+  return !!id && (SUMMER_TRACKS as readonly string[]).includes(id);
+}
+
+function launchSelectedSummerRace(menu: MenuRuntime): boolean {
+  const track = menu.tracks?.[menu.trackIndex ?? -1];
+  const character = menu.characters?.[menu.charIndex ?? -1];
+  if (!track?.id || !character?.id || !isSummerTrack(track.id) || !menu.onStart) return false;
+  const difficulty: Difficulty = menu.difficultyIndex === 0 ? 'easy' : menu.difficultyIndex === 2 ? 'hard' : 'normal';
+  events.emit('ui:select', {});
+  menu.onStart({
+    characterId: character.id,
+    trackId: track.id,
+    difficulty,
+    laps: track.laps && track.laps > 0 ? track.laps : 3,
+  });
+  return true;
+}
+
 let flowPatched = false;
 function installChampionshipOneFlow(): void {
   if (flowPatched) return;
   const menu = game()?.mainMenu;
-  if (!menu?.goTo || !menu.start) {
+  if (!menu?.goTo || !menu.setTrack) {
     window.setTimeout(installChampionshipOneFlow, 80);
     return;
   }
 
   const originalGoTo = menu.goTo.bind(menu);
-  const startSelectedRace = menu.start.bind(menu);
+  const originalSetTrack = menu.setTrack.bind(menu);
+
+  // MainMenu's original Copa allow-list was created when the cup had three tracks.
+  // Temporarily hide championship mode only while selecting one of the five official tracks.
+  menu.setTrack = (index, sound) => {
+    const trackId = menu.tracks?.[index]?.id;
+    if (isOfficialSummerStageReady() && isSummerTrack(trackId)) {
+      const championship = sessionStorage.getItem('rc-championship');
+      sessionStorage.removeItem('rc-championship');
+      originalSetTrack(index, sound);
+      if (championship) sessionStorage.setItem('rc-championship', championship);
+      return;
+    }
+    originalSetTrack(index, sound);
+  };
 
   menu.goTo = (panel, sound) => {
     if (
@@ -186,8 +225,7 @@ function installChampionshipOneFlow(): void {
       (isOfficialSummerStageReady() || sessionStorage.getItem('rc-summer-practice') === '1')
     ) {
       if (sessionStorage.getItem('rc-summer-practice') === '1') sessionStorage.removeItem('rc-summer-practice');
-      startSelectedRace();
-      return;
+      if (launchSelectedSummerRace(menu)) return;
     }
     originalGoTo(panel, sound);
   };
@@ -205,22 +243,24 @@ function defaultDifficultyUnlocks(): DifficultyUnlocks {
 
 function inferredUnlockedStage(difficulty: Difficulty): number {
   const cup = loadChampionship(difficulty);
-  if (cup.cleared || cup.completed) return 2;
+  const lastStage = CHAMPIONSHIP_STAGES_TOTAL - 1;
+  if (cup.cleared || cup.completed) return lastStage;
   let unlocked = 0;
-  for (const result of cup.results) unlocked = Math.max(unlocked, Math.min(2, result.stage + 1));
-  unlocked = Math.max(unlocked, Math.min(2, cup.currentStage));
+  for (const result of cup.results) unlocked = Math.max(unlocked, Math.min(lastStage, result.stage + 1));
+  unlocked = Math.max(unlocked, Math.min(lastStage, cup.currentStage));
   return unlocked;
 }
 
 function loadDifficultyUnlocks(): DifficultyUnlocks {
   const base = defaultDifficultyUnlocks();
+  const lastStage = CHAMPIONSHIP_STAGES_TOTAL - 1;
   try {
     const raw = localStorage.getItem(DIFFICULTY_UNLOCK_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<DifficultyUnlocks>;
       for (const difficulty of ['easy', 'normal', 'hard'] as Difficulty[]) {
         const value = Number(parsed[difficulty]);
-        if (Number.isFinite(value)) base[difficulty] = Math.max(0, Math.min(2, Math.floor(value)));
+        if (Number.isFinite(value)) base[difficulty] = Math.max(0, Math.min(lastStage, Math.floor(value)));
       }
     }
   } catch {
@@ -342,9 +382,6 @@ function syncDriverNamesAndVictoryCopy(): void {
       }
     }
 
-    // Free-race results used a coloured square beside each pilot. Replace that
-    // internal kart-colour marker with the pilot's country flag so the screen
-    // reads as people/characters instead of colour-coded cars.
     const row = node.closest<HTMLElement>('.standing-row');
     const chip = row?.querySelector<HTMLElement>('.standing-chip');
     if (chip) {
