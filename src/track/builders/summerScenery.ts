@@ -95,14 +95,65 @@ function addCoastStrip(root: THREE.Group, sample: TrackSample, side: number, sun
     side: THREE.DoubleSide,
   });
 
-  // The beach starts outside the barriers. The sea begins after the sand, so
-  // neither surface can overlap the driveable road even on tight bends.
   const sandInner = sample.wallHalfWidth + 1.5;
   const sandOuter = sample.wallHalfWidth + 8.5;
   const waterInner = sandOuter;
   const waterOuter = sample.wallHalfWidth + 31;
   root.add(makeCoastQuad(sample, side, sandInner, sandOuter, 31, -0.05, sandMat));
   root.add(makeCoastQuad(sample, side, waterInner, waterOuter, 31, -0.18, waterMat));
+}
+
+function addSunsetGrandstand(root: THREE.Group, ctx: BuildContext, sample: TrackSample, landSide: number): void {
+  // One compact stand on the land side, well outside the barriers. Keeping it
+  // short and one-sided prevents it from crossing the nearby return section.
+  ctx.cl.sample(0.015, sample);
+  const stand = new THREE.Group();
+  stand.name = 'sunset-safe-grandstand';
+
+  const concrete = new THREE.MeshStandardMaterial({ color: 0x8d8b91, roughness: 0.9 });
+  const seatColors = [0xf04a47, 0xffd34e, 0x42b7ff, 0x7bd66a, 0xd45adf];
+  const length = 25;
+  const tiers = 4;
+  const depth = 1.65;
+  const rise = 0.95;
+
+  for (let k = 0; k < tiers; k++) {
+    const tier = new THREE.Mesh(new THREE.BoxGeometry(depth, rise * (k + 1), length), concrete);
+    tier.position.set(k * depth, rise * (k + 1) * 0.5, 0);
+    tier.castShadow = true;
+    tier.receiveShadow = true;
+    stand.add(tier);
+
+    const seatMat = new THREE.MeshStandardMaterial({ color: seatColors[k % seatColors.length], roughness: 0.75 });
+    for (let c = 0; c < 22; c++) {
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.45, 0.48), seatMat);
+      seat.position.set(k * depth - 0.35, rise * (k + 1) + 0.24, -length * 0.5 + 0.7 + c * 1.08);
+      stand.add(seat);
+    }
+  }
+
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x8f2f38, roughness: 0.75 });
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(tiers * depth + 2.5, 0.28, length + 1.8), roofMat);
+  roof.position.set((tiers - 1) * depth * 0.5, 7.1, 0);
+  roof.rotation.z = -0.08 * landSide;
+  stand.add(roof);
+
+  // Support poles stay on the back of the stand, away from the racing surface.
+  for (const z of [-length * 0.42, 0, length * 0.42]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 7.1, 6), concrete);
+    pole.position.set(tiers * depth + 0.7, 3.55, z);
+    stand.add(pole);
+  }
+
+  const distance = sample.wallHalfWidth + 19;
+  stand.position.set(
+    sample.position.x + sample.binormal.x * landSide * distance,
+    sample.position.y,
+    sample.position.z + sample.binormal.z * landSide * distance,
+  );
+  stand.rotation.y = Math.atan2(-sample.tangent.x, -sample.tangent.z);
+  if (landSide > 0) stand.rotation.y += Math.PI;
+  root.add(stand);
 }
 
 export function buildSummerScenery(ctx: BuildContext): THREE.Group {
@@ -121,6 +172,8 @@ export function buildSummerScenery(ctx: BuildContext): THREE.Group {
     ctx.cl.sample((i + 0.5) / waterSteps, sample);
     addCoastStrip(root, sample, waterSide, sunset);
   }
+
+  if (sunset) addSunsetGrandstand(root, ctx, sample, -waterSide);
 
   const palmBase = makePalm();
   const palmCount = tropical ? 34 : sunset ? 28 : 30;
