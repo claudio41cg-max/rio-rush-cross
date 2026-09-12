@@ -33,7 +33,7 @@ export class Track implements ITrack {
   this.checkpoints=this.buildCheckpoints(); this.startGrid=this.buildStartGrid(); this.itemBoxPositions=computeItemBoxPositions(ctx,ITEM_BOX_ROW_SIZE); this.minimap=this.buildMinimap();
   const root=new THREE.Group(); root.name=`track:${def.id}`; root.add(buildSky(ctx)); root.add(buildTerrain(ctx)); root.add(buildMountains(ctx)); root.add(buildRoad(ctx)); root.add(buildBarriers(ctx));
   const cleanCoastal=def.id==='coastal_rush';
-  const specialSummer=def.id==='summer_beach'||def.id==='summer_sunset'||def.id==='summer_tropical';
+  const specialSummer=def.id==='summer_beach'||def.id==='summer_harbor'||def.id==='summer_sunset'||def.id==='summer_tropical'||def.id==='summer_lighthouse';
   if(!cleanCoastal&&!specialSummer){ root.add(buildDecorations(ctx)); root.add(buildLandmarks(ctx)); }
   if(!cleanCoastal){ if(def.id!=='summer_sunset') root.add(buildGrandstands(ctx)); root.add(buildGantry(ctx)); root.add(buildSponsorBridges(ctx)); root.add(buildAnimatedProps(ctx)); }
   if(specialSummer) root.add(buildSummerScenery(ctx));
