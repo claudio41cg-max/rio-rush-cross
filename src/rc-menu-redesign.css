@@ -1,25 +1,70 @@
-/* RC Rush — apresentação/menu premium. Somente UI; não altera física, pistas ou corrida. */
+/* RC Rush — menu principal com o carro como protagonista. Somente UI. */
 .panel-title-screen.rc-intro-stage .logo,
 .panel-title-screen.rc-intro-stage .logo-sub,
 .panel-title-screen.rc-intro-stage .coin-badge,
-.panel-title-screen.rc-intro-stage .version { opacity:0 !important; pointer-events:none; transform:translateY(-10px); transition:opacity .35s ease,transform .35s ease; }
-.panel-title-screen.rc-intro-stage .controls-legend { display:none !important; }
+.panel-title-screen.rc-intro-stage .version,
 .panel-title-screen.rc-intro-stage .rc-mode-menu,
-.rc-premium-hidden { display:none !important; visibility:hidden !important; pointer-events:none !important; }
-.panel-title-screen.rc-intro-stage .press-start { inset:0 !important; display:flex !important; align-items:flex-end; justify-content:center; padding-bottom:9vh; pointer-events:none; background:linear-gradient(180deg,transparent 48%,rgba(4,7,18,.34) 100%); }
-.panel-title-screen.rc-intro-stage .press-start-text { display:inline-flex; align-items:center; justify-content:center; min-width:250px; padding:16px 30px; border:1px solid rgba(255,255,255,.42); border-radius:999px; background:rgba(5,9,24,.55); box-shadow:0 12px 40px rgba(0,0,0,.35),inset 0 0 24px rgba(255,255,255,.05); backdrop-filter:blur(12px); font-size:clamp(15px,2.2vw,23px); font-weight:900; letter-spacing:.18em; color:#fff; text-shadow:0 2px 12px #000; animation:rcStartPulse 1.7s ease-in-out infinite; }
+.panel-title-screen.rc-intro-stage .rc-car-panel { opacity:0 !important; visibility:hidden !important; pointer-events:none !important; }
+.panel-title-screen.rc-intro-stage .controls-legend { display:none !important; }
+.panel-title-screen.rc-intro-stage .press-start { inset:0 !important; display:flex !important; align-items:flex-end; justify-content:center; padding-bottom:8vh; pointer-events:none; background:linear-gradient(180deg,transparent 52%,rgba(4,7,18,.36) 100%); }
+.panel-title-screen.rc-intro-stage .press-start-text { display:inline-flex; align-items:center; justify-content:center; min-width:250px; padding:15px 30px; border:1px solid rgba(255,255,255,.42); border-radius:999px; background:rgba(5,9,24,.48); box-shadow:0 12px 40px rgba(0,0,0,.35),inset 0 0 24px rgba(255,255,255,.05); backdrop-filter:blur(12px); font-size:clamp(15px,2vw,22px); font-weight:900; letter-spacing:.18em; color:#fff; text-shadow:0 2px 12px #000; animation:rcStartPulse 1.7s ease-in-out infinite; }
 .panel-title-screen.rc-intro-stage .press-start-text::before { content:'▶'; margin-right:13px; color:#ffbd2e; font-size:.8em; }
 @keyframes rcStartPulse{0%,100%{transform:scale(1);box-shadow:0 12px 40px rgba(0,0,0,.35),0 0 0 rgba(255,177,32,0)}50%{transform:scale(1.035);box-shadow:0 12px 40px rgba(0,0,0,.35),0 0 28px rgba(255,177,32,.28)}}
+
 .panel-title-screen.rc-menu-stage .press-start,
 .panel-title-screen.rc-menu-stage .controls-legend { display:none !important; }
-.panel-title-screen.rc-menu-stage .logo { transform:scale(.72); transform-origin:top center; top:2.2vh !important; }
-.panel-title-screen.rc-menu-stage .logo-sub { top:22vh !important; font-size:clamp(10px,1.3vw,14px); letter-spacing:.38em; }
+.panel-title-screen.rc-menu-stage .logo { transform:scale(.46); transform-origin:top left; left:2.3vw !important; top:2vh !important; right:auto !important; }
+.panel-title-screen.rc-menu-stage .logo-sub { display:none !important; }
 .panel-title-screen.rc-menu-stage .coin-badge { top:3vh !important; right:3vw !important; }
-.panel-title-screen.rc-menu-stage .version { opacity:.42; }
-.panel-title-screen.rc-menu-stage .rc-mode-menu { display:block !important; width:min(720px,78vw) !important; max-width:78vw !important; top:auto !important; bottom:7vh !important; left:50% !important; transform:translateX(-50%) !important; padding:14px !important; border:1px solid rgba(255,255,255,.16); border-radius:28px; background:linear-gradient(145deg,rgba(8,13,31,.82),rgba(17,22,48,.68)); box-shadow:0 22px 65px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.08); backdrop-filter:blur(18px); }
-.panel-title-screen.rc-menu-stage .rc-mode-title { font-size:clamp(15px,2vw,22px) !important; letter-spacing:.22em !important; margin:0 0 11px !important; }
-.panel-title-screen.rc-menu-stage .rc-mode-buttons { display:grid !important; grid-template-columns:1.45fr 1fr .54fr .54fr !important; gap:9px !important; }
-.panel-title-screen.rc-menu-stage .rc-mode-btn { min-height:64px !important; border-radius:19px !important; padding:10px 14px !important; font-size:clamp(12px,1.45vw,17px) !important; border:1px solid rgba(255,255,255,.15) !important; background:rgba(17,25,53,.76) !important; box-shadow:none !important; }
-.panel-title-screen.rc-menu-stage .rc-mode-btn.rc-mode-primary { background:linear-gradient(120deg,#ffb11f,#ff5c4e) !important; box-shadow:0 8px 30px rgba(255,102,48,.22) !important; }
-.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(3),.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(4){font-size:0!important}.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(3)::after{content:'🔧';font-size:24px}.panel-title-screen.rc-menu-stage .rc-mode-btn:nth-child(4)::after{content:'⚙';font-size:25px}
-@media(max-height:520px){.panel-title-screen.rc-intro-stage .press-start{padding-bottom:6vh}.panel-title-screen.rc-menu-stage .logo{transform:scale(.57);top:1vh!important}.panel-title-screen.rc-menu-stage .logo-sub{display:none}.panel-title-screen.rc-menu-stage .rc-mode-menu{bottom:4vh!important;padding:10px!important}.panel-title-screen.rc-menu-stage .rc-mode-btn{min-height:54px!important}.panel-title-screen.rc-menu-stage .rc-mode-title{margin-bottom:7px!important}}
+.panel-title-screen.rc-menu-stage .version { opacity:.24; right:3vw !important; bottom:2vh !important; }
+
+/* O menu ocupa somente a faixa esquerda. A direita fica livre para o carro 3D. */
+.panel-title-screen.rc-menu-stage .rc-mode-menu { display:flex !important; flex-direction:column; justify-content:center; width:min(355px,31vw) !important; max-width:31vw !important; height:auto !important; top:50% !important; bottom:auto !important; left:3vw !important; right:auto !important; transform:translateY(-43%) !important; padding:12px !important; border:none !important; background:transparent !important; box-shadow:none !important; backdrop-filter:none !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-title { text-align:left !important; font-size:clamp(12px,1.55vw,18px) !important; letter-spacing:.18em !important; margin:0 0 9px 5px !important; color:rgba(255,255,255,.78) !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-buttons { display:flex !important; flex-direction:column !important; gap:7px !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn { width:100% !important; min-height:48px !important; border-radius:16px !important; padding:10px 16px !important; text-align:left !important; justify-content:flex-start !important; font-size:clamp(11px,1.35vw,16px) !important; letter-spacing:.035em !important; border:1px solid rgba(255,255,255,.14) !important; background:linear-gradient(90deg,rgba(9,15,34,.84),rgba(14,22,47,.62)) !important; box-shadow:0 8px 22px rgba(0,0,0,.18) !important; backdrop-filter:blur(10px); transition:transform .16s ease,border-color .16s ease,background .16s ease; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn:hover,
+.panel-title-screen.rc-menu-stage .rc-mode-btn:focus { transform:translateX(5px); border-color:rgba(255,255,255,.34) !important; }
+.panel-title-screen.rc-menu-stage .rc-mode-btn.rc-mode-primary { background:linear-gradient(100deg,rgba(255,174,25,.96),rgba(255,83,67,.92)) !important; box-shadow:0 10px 28px rgba(255,102,48,.2) !important; }
+.panel-title-screen.rc-menu-stage .rc-shop-entry { border-color:rgba(255,198,75,.34) !important; }
+.panel-title-screen.rc-menu-stage .rc-menu-coins { margin:10px 5px 0; color:#ffd45a; font-weight:800; font-size:13px; letter-spacing:.06em; }
+
+/* Loja/Garagem: painel à esquerda, carro continua visível à direita. */
+.rc-car-panel { position:absolute; z-index:35; left:2.6vw; top:4vh; bottom:4vh; width:min(470px,41vw); padding:14px; border:1px solid rgba(255,255,255,.16); border-radius:24px; background:linear-gradient(155deg,rgba(5,10,26,.9),rgba(12,18,42,.76)); box-shadow:0 22px 60px rgba(0,0,0,.38); backdrop-filter:blur(17px); overflow:hidden; }
+.rc-car-panel.hidden { display:none !important; }
+.rc-car-panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.rc-car-panel-head small { color:#ffca55; letter-spacing:.18em; font-weight:800; }
+.rc-car-panel-head h2 { margin:2px 0 2px; font-size:clamp(18px,2.1vw,27px); }
+.rc-car-panel-head p { margin:0; max-width:320px; color:rgba(255,255,255,.66); font-size:12px; line-height:1.25; }
+.rc-car-close { flex:0 0 auto; border:1px solid rgba(255,255,255,.16); border-radius:13px; background:rgba(255,255,255,.06); color:#fff; padding:9px 12px; font-weight:800; }
+.rc-car-grid { height:calc(100% - 78px); overflow:auto; display:grid; grid-template-columns:1fr 1fr; gap:9px; padding-right:3px; }
+.rc-car-card { border:1px solid rgba(255,255,255,.13); border-radius:17px; padding:11px; text-align:left; color:#fff; background:linear-gradient(145deg,rgba(24,34,64,.78),rgba(10,16,37,.76)); min-height:156px; }
+.rc-car-card:hover,.rc-car-card:focus { border-color:rgba(255,203,78,.48); }
+.rc-car-card.special { background:linear-gradient(145deg,rgba(76,42,89,.72),rgba(18,18,42,.82)); }
+.rc-car-card.owned { border-color:rgba(70,222,143,.38); }
+.rc-car-card-top { display:flex; align-items:center; gap:9px; }
+.rc-car-dot { width:34px; height:34px; border-radius:11px; border:2px solid rgba(255,255,255,.7); box-shadow:0 4px 16px rgba(0,0,0,.24); }
+.rc-car-card-top strong { display:block; font-size:14px; }
+.rc-car-card-top small { display:block; margin-top:1px; font-size:9px; letter-spacing:.1em; color:rgba(255,255,255,.5); }
+.rc-car-card p { margin:7px 0; min-height:28px; color:rgba(255,255,255,.67); font-size:10px; line-height:1.25; }
+.rc-car-stats { display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; }
+.rc-car-stats span { display:grid; grid-template-columns:28px 1fr; align-items:center; gap:4px; font-size:8px; color:rgba(255,255,255,.55); }
+.rc-car-stats i { display:block; height:4px; border-radius:99px; background:rgba(255,255,255,.12); overflow:hidden; }
+.rc-car-stats em { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#39c8ff,#ff5ba7); }
+.rc-car-state { margin-top:8px; font-size:10px; font-weight:900; letter-spacing:.06em; color:#ffd45a; }
+.rc-car-card.owned .rc-car-state { color:#6ff0a8; }
+.rc-car-empty { grid-column:1/-1; display:grid; place-items:center; color:rgba(255,255,255,.6); font-size:13px; }
+
+/* Deixa o palco 3D respirar quando loja/garagem estão abertas. */
+.panel-title-screen.rc-car-space .logo,.panel-title-screen.rc-car-space .logo-sub,.panel-title-screen.rc-car-space .press-start,.panel-title-screen.rc-car-space .coin-badge { opacity:0 !important; pointer-events:none !important; }
+
+@media(max-height:520px){
+  .panel-title-screen.rc-intro-stage .press-start{padding-bottom:5vh}
+  .panel-title-screen.rc-menu-stage .logo{transform:scale(.36);top:.5vh!important}
+  .panel-title-screen.rc-menu-stage .rc-mode-menu{width:30vw!important;max-width:30vw!important;left:2vw!important;transform:translateY(-42%)!important;padding:8px!important}
+  .panel-title-screen.rc-menu-stage .rc-mode-btn{min-height:39px!important;padding:7px 12px!important;border-radius:13px!important;font-size:11px!important}
+  .panel-title-screen.rc-menu-stage .rc-mode-buttons{gap:5px!important}
+  .panel-title-screen.rc-menu-stage .rc-mode-title{font-size:11px!important;margin-bottom:5px!important}
+  .rc-car-panel{top:2vh;bottom:2vh;width:40vw;padding:10px;border-radius:18px}
+  .rc-car-panel-head h2{font-size:18px}.rc-car-panel-head p{display:none}.rc-car-grid{height:calc(100% - 48px);gap:6px}.rc-car-card{min-height:124px;padding:8px}.rc-car-card p{margin:4px 0}.rc-car-dot{width:28px;height:28px}.rc-car-card-top strong{font-size:11px}
+}
