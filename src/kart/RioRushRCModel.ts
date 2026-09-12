@@ -19,6 +19,10 @@ function tintBody(root:THREE.Object3D,color:number,accent:number):void{let index
 
 /** Shared RC assets: load once and clone for all racers. */
 export function installRioRushRCModel(parts:KartModelPartsEx,character:CharacterDef):void{
+  // Os carros de coleção "classic_*" reaproveitam o modelo procedural original
+  // que buildKartModel já criou. Assim recuperamos os carros antigos sem duplicar física.
+  if(character.id.startsWith('classic_')) return;
+
   const oldChildren=[...parts.root.children];const rc=new THREE.Group();rc.name=`rc-rush-${character.id}`;parts.root.add(rc);
   getSharedAssets().then((assets)=>{
     const body=cloneForRacer(assets.body),fl=cloneForRacer(assets.fl),fr=cloneForRacer(assets.fr),rl=cloneForRacer(assets.rl),rr=cloneForRacer(assets.rr);
