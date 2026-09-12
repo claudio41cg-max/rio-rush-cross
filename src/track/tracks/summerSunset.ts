@@ -14,6 +14,6 @@ export const summerSunset: TrackDefinition = {
   halfWidth:8.4,
   halfWidths:[8.8,8.8,8.6,8.4,8.4,8.4,8.6,8.8,8.8,8.4,8.4,8.4,8.6,8.8,8.8,8.6,8.6,8.8],
   wallHalfWidthFactor:1.6,itemBoxRows:[.11,.36,.6,.83],boostPads:[.22,.49,.89],
-  environment:{skyTop:0x3b4f9f,skyHorizon:0xff9f66,skyBottom:0xffd39b,fogColor:0xd9a882,fogDensity:.0017,sunColor:0xffb46a,sunIntensity:2.5,sunDirection:{x:-.62,y:.42,z:.34},ambientSky:0x8d88ba,ambientGround:0x9e704d,ambientIntensity:.86},
-  palette:{road:0x4a494c,roadStripe:0xffe7b6,curb:0xff7d3a,curbAlt:0xfff3df,offroad:0xc79c68,wall:0x343035,ground:0xbc8f60}
+  environment:{skyTop:0x4f67b4,skyHorizon:0xffad76,skyBottom:0xffdba9,fogColor:0xe3b493,fogDensity:.00145,sunColor:0xffc184,sunIntensity:2.8,sunDirection:{x:-.5,y:.62,z:.28},ambientSky:0xa6a3d0,ambientGround:0xb7855f,ambientIntensity:1.12},
+  palette:{road:0x515054,roadStripe:0xffedc7,curb:0xff8747,curbAlt:0xfff6e6,offroad:0xcfa775,wall:0x39353b,ground:0xc59a6d}
 };
