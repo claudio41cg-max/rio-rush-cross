@@ -19,8 +19,10 @@ const TRACK_IDS = [
   'neon_nexus',
   'coastal_rush',
   'summer_beach',
+  'summer_harbor',
   'summer_sunset',
   'summer_tropical',
+  'summer_lighthouse',
 ] as const;
 
 function coinBadge(): HTMLElement | null {
