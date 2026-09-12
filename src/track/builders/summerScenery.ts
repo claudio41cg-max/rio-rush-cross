@@ -159,11 +159,16 @@ function addSunsetGrandstand(root: THREE.Group, ctx: BuildContext, sample: Track
 export function buildSummerScenery(ctx: BuildContext): THREE.Group {
   const root = new THREE.Group();
   root.name = 'summer-scenery';
-  const isSummer = ctx.def.id === 'summer_beach' || ctx.def.id === 'summer_sunset' || ctx.def.id === 'summer_tropical';
+  const isSummer =
+    ctx.def.id === 'summer_beach' ||
+    ctx.def.id === 'summer_harbor' ||
+    ctx.def.id === 'summer_sunset' ||
+    ctx.def.id === 'summer_tropical' ||
+    ctx.def.id === 'summer_lighthouse';
   if (!isSummer) return root;
 
   const sample = makeSample();
-  const sunset = ctx.def.id === 'summer_sunset';
+  const sunset = ctx.def.id === 'summer_sunset' || ctx.def.id === 'summer_lighthouse';
   const tropical = ctx.def.id === 'summer_tropical';
   const waterSide = tropical ? -1 : 1;
 
@@ -173,7 +178,7 @@ export function buildSummerScenery(ctx: BuildContext): THREE.Group {
     addCoastStrip(root, sample, waterSide, sunset);
   }
 
-  if (sunset) addSunsetGrandstand(root, ctx, sample, -waterSide);
+  if (ctx.def.id === 'summer_sunset') addSunsetGrandstand(root, ctx, sample, -waterSide);
 
   const palmBase = makePalm();
   const palmCount = tropical ? 34 : sunset ? 28 : 30;
